@@ -8,7 +8,7 @@
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.0.5"
+	state.version = "1.0.6"
 }
     
 definition(
