@@ -1,0 +1,27 @@
+{
+  "packageName": "Auto Lock",
+  "author": "Lewis Heidrick",
+  "version": "1.0.6",
+  "minimumHEVersion": "2.2.4",
+  "dateReleased": "2020-12-28",
+  "apps": [
+    {
+      "id": "0150b5f8-c75d-4f5f-bf21-18542e669416",
+      "name": "Auto Lock",
+      "namespace": "heidrickla",
+      "location": "https://raw.githubusercontent.com/heidrickla/Hubitat/main/Apps/Auto%20Lock/Auto%20Lock.groovy",
+      "required": true,
+      "oauth": false,
+      "primary": false
+    },
+    {
+      "id": "a531a5c9-4996-4b76-9b8a-3d064258dd1a",
+      "name": "Auto Lock Child",
+      "namespace": "heidrickla",
+      "location": "https://raw.githubusercontent.com/heidrickla/Hubitat/main/Apps/Auto%20Lock/Auto%20Lock%20Child.groovy",
+      "required": true,
+      "oauth": false,
+      "primary": false
+    }
+  ]
+}
