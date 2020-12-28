@@ -1,0 +1,15 @@
+{
+  "author": "Lewis Heidrick",
+  "gitHubUrl": "https://github.com/heidrickla",
+  "payPalUrl": "https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=3MPZ3GU5XL8RS&item_name=Hubitat+Development&currency_code=USD",
+  "packages": [
+    {
+      "id": "29a47f4d-25b1-41ff-96e9-cad04a51f14b",
+      "name": "Auto Lock",
+      "category": "Security"
+      "location": "https://raw.githubusercontent.com/heidrickla/Hubitat/main/Docs/AutoLockManifest.json",
+      "description": "Automatically lock the door after a pre-determined amount of time, when door closed after a delay, or when triggered with a switch."
+      "tags": ["Automations & Groups", "Monitoring", "Safety & Security", "Tools & Utilities", "Timers", "Doors & Windows"
+    }
+  ]
+}
