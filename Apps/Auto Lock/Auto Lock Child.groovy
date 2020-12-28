@@ -1,3 +1,11 @@
+/* 
+ *   Hubitat Import URL: https://raw.githubusercontent.com/heidrickla/Hubitat/Apps/Auto%20Lock/Auto%20Lock%20Child.groovy
+ *
+ *   Author Chris Sader, modified by Lewis Heidrick with permission from Chris to takeover the project.
+ *   
+ *   12/28/2020 - Project Published to GitHub
+ */
+
 def setVersion() {
     state.name = "Auto Lock"
 	state.version = "1.0.5"
