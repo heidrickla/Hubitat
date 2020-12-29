@@ -7,15 +7,15 @@
  */
 
 def setVersion() {
-    state.name = "Device Testing App"
+    state.name = "Diagnostics Page"
 	state.version = "1.0.6"
 }
     
 definition(
-    name: "Diagnostic Page",
+    name: "Diagnostics Page",
     namespace: "heidrickla",
     author: "Lewis Heidrick",
-    description: "Device Testing App",
+    description: "Diagnostics Page",
     category: "Convenience",
     iconUrl: "",
     iconX2Url: "",
