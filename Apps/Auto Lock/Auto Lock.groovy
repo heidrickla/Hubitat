@@ -34,7 +34,7 @@ def mainPage() {
         }
         else {
         	section("Create a new Auto Lock Instance.") {
-            	app(name: "childApps", appName: "Auto Lock Child", namespace: "chris.sader", title: "New Auto Lock Instance", multiple: true)
+            	app(name: "childApps", appName: "Auto Lock Child", namespace: "heidrickla", title: "New Auto Lock Instance", multiple: true)
         	}
     	}
     }
