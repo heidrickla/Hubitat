@@ -1,5 +1,5 @@
 /* 
- *   Hubitat Import URL: https://raw.githubusercontent.com/heidrickla/Hubitat/Apps/Diagnostic%20Page.groovy
+ *   Hubitat Import URL: https://raw.githubusercontent.com/heidrickla/Hubitat/main/Apps/Diagnostic%20Page/Diagnostics%20Page.groovy
  *
  *   Author: Lewis Heidrick
  *   
