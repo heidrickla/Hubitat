@@ -84,15 +84,9 @@ def sensorStates() {
     lockStatus = " "
     contactStatus = " "
     lightSwitchStatus = " "
-    if (lock1 != null) {
-    lockStatus = "${lock1} [${lock1?.currentValue("lock")}]"
-    }
-    if (contact != null) {
-    contactStatus = "${contact} [${contact?.currentValue("contact")}]"
-    }
-    if (lightSwitch != null) {
-    lightSwitchStatus = "${lightSwitch} [${lightSwitch?.currentValue("switch")}]"
-    }
+    if (lock1 != null) {lockStatus = "${lock1} [${lock1?.currentValue("lock")}]" }
+    if (contact != null) {contactStatus = "${contact} [${contact?.currentValue("contact")}]"}
+    if (lightSwitch != null) {lightSwitchStatus = "${lightSwitch} [${lightSwitch?.currentValue("switch")}]"}
 }
 
 // Logging functions
