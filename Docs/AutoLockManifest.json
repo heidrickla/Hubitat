@@ -12,7 +12,7 @@
       "location": "https://raw.githubusercontent.com/heidrickla/Hubitat/main/Apps/Auto%20Lock/Auto%20Lock.groovy",
       "required": true,
       "oauth": false,
-      "primary": true
+      "primary": false
     },
     {
       "id": "a531a5c9-4996-4b76-9b8a-3d064258dd1a",
