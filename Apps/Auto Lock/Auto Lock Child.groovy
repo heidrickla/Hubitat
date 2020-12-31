@@ -8,7 +8,7 @@
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.0.6"
+	state.version = "1.1.0"
 }
     
 definition(
@@ -48,34 +48,36 @@ def mainPage() {
     }
     
     dynamicPage(name: "mainPage", install: true, uninstall: true) {
-        ifDebug("mainPage: [state.status = ${state?.status}] [state.paused = ${state?.paused}] [state.disabled = ${state.disabled}]")
-        if (state?.disabled == "Disabled") {
-            state.pauseButtonName = "Enable"
+        diagnosticHandler()
+        if (state?.disabled == true) {
+            state.pauseButtonName = "Disabled by Switch"
             unsubscribe()
             unschedule()
             subscribe(disabledSwitch, "switch", disabledHandler)
+            updateLabel()
         } else if (state.paused == true) {
             state.pauseButtonName = "Resume"
             unsubscribe()
             unschedule()
             subscribe(disabledSwitch, "switch", disabledHandler)
+            updateLabel()
         } else {
             state.pauseButtonName = "Pause"
             initialize()
+            updateLabel()
         }
     section("") {
       input name: "Pause", type: "button", title: state.pauseButtonName, submitOnChange:true
-    }  
+    }
     section("") {
-    String defaultName = "Enter a name for this child app"
-        if (state.displayName) {
-            defaultName = state.displayName
-            app.updateLabel(defaultName)
-        }
-    label title: "Enter a name for this child app", required:false, defaultValue: defaultName, submitOnChange:true   
+        updateLabel()
+        String defaultName = "Enter a name for this child app"
+        if(state.newName != null) {defaultName = state.newName}
+        label title: "Enter a name for this child app", required:false, defaultValue: defaultName, submitOnChange:true 
     }
     section("When a door unlocks...") {
-    input "lock1", "capability.lock", title: "Lock Location:", required: true
+        input "lock1", "capability.lock", title: "Lock: ${lock1Status}", required: true, submitOnChange: true
+        input "refresh", "bool", title: "Click here to refresh the device status", submitOnChange:true
     }
     section() {
         input "duration", "number", title: "Lock it how many minutes/seconds later?"
@@ -84,12 +86,14 @@ def mainPage() {
         input type: "bool", name: "minSec", title: "Default is minutes. Use seconds instead?", required: true, defaultValue: false
     }
     section("Lock it only when this door is closed.") {
-    input "contact", "capability.contactSensor", title: "Choose Door Contact Sensor"
+        input "contact", "capability.contactSensor", title: "Door Contact: ${contactStatus}", required: false, submitOnChange: true
+        input "refresh", "bool", title: "Click here to refresh the device status", submitOnChange:true
+        app.updateSetting("refresh",[value:"false",type:"bool"])
     }
     section("Logging Options", hideable: true, hidden: hideLoggingSection()) {
-            input "isInfo", "bool", title: "Enable Info logging for 30 minutes", submitOnChange: true, defaultValue: false
-            input "isDebug", "bool", title: "Enable debug logging for 30 minutes", submitOnChange: true, defaultValue: false
-		    input "isTrace", "bool", title: "Enable Trace logging for 30 minutes", submitOnChange: true, defaultValue: false
+            input "isInfo", "bool", title: "Enable Info logging for 30 minutes", submitOnChange: false, defaultValue: false
+            input "isDebug", "bool", title: "Enable debug logging for 30 minutes", submitOnChange: false, defaultValue: false
+		    input "isTrace", "bool", title: "Enable Trace logging for 30 minutes", submitOnChange: false, defaultValue: false
             input "ifLevel","enum", title: "IDE logging level",required: true, options: getLogLevels(), defaultValue : "1"
             paragraph "NOTE: IDE logging level overrides the temporary logging selections."
     }
@@ -99,9 +103,10 @@ def mainPage() {
 			input "days", "enum", title: "Only on certain days of the week", multiple: true, required: false,
 			options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 			input "modes", "mode", title: "Only when mode is", multiple: true, required: false
-            input "disableSwitch", "capability.switch", title: "Switch to Enable and Disable this app", submitOnChange:true, required:false, multiple:true
-		}
+            input "disabledSwitch", "capability.switch", title: "Switch to Enable and Disable this app", submitOnChange:true, required:false, multiple:true
     }
+    }
+    
 }
 
 // Application settings and startup
@@ -115,35 +120,53 @@ def updated() {
     ifDebug("Auto Lock Door updated.")
     unsubscribe()
     unschedule()
-    initialize()
+    subscribe(disabledSwitch, "switch", disabledHandler)
+    subscribe(deviceActivationSwitch, "switch", deviceActivationSwitchHandler)
     updateLabel()
 }
 
 def initialize() {
     ifTrace("initialize")
     ifDebug("Settings: ${settings}")
-    ifDebug("Settings: ${settings}")
     subscribe(lock1, "lock", doorHandler)
     subscribe(contact, "contact.open", doorHandler)
     subscribe(contact, "contact.closed", doorHandler)
-    subscribe(disabledSwitch, "switch", disabledHandler)
+    subscribe(disabledSwitch, "switch.on", disabledHandler)
+    subscribe(disabledSwitch, "switch.off", disabledHandler)
     subscribe(deviceActivationSwitch, "switch", deviceActivationSwitchHandler)
-    checkPausedOrDisabled()
-    updateLabel
+    subscribe(lock1, "lock", diagnosticHandler)
+    subscribe(contact, "contact.open", diagnosticHandler)
+    subscribe(contact, "contact.closed", diagnosticHandler)
+    updateLabel()
 }
 
 // Device Handlers
-
+def diagnosticHandler(evt) {
+    ifTrace("diagnosticHandler")
+    if (lock1?.currentValue("lock") != null) {
+        lock1Status = lock1.currentValue("lock")
+        ifTrace("diagnosticHandler: lock1.currentValue = ${lock1.currentValue("lock")}")
+    } else if (lock1?.lastValue("lock") != null) {
+        lock1Status = lock1.lastValue("lock")
+        ifTrace("diagnosticHandler: lock1.lastValue = ${lock1.lastValue("lock")}")
+    } else {
+        lock1Status = " "
+        ifTrace("diagnosticHandler: lock1Status = ${lock1Status}")
+    }
+    if (contact?.currentValue("contact") != null) {contactStatus = contact.currentValue("contact")
+    } else if (contact?.lastValue("contact") != null) {contactStatus = contact.lastValue("contact")
+    } else {
+        contactStatus = " "   
+    }
+    updateLabel()
+}
 
 def doorHandler(evt) {
     ifTrace("doorHandler")
-    checkPausedOrDisabled()
+    updateLabel()
     if (state.pausedOrDisabled == false) {
         if (evt.value == "closed") {ifDebug("Door Closed")}
         if (evt.value == "opened") {
-            ifDebug("Door Open")
-            checkPausedOrDisabled()
-            if (state.pausedOrDisabled == false) {
                 ifDebug("Door open reset previous lock task...")
                 unschedule(lockDoor)
                 if (minSec) {
@@ -153,7 +176,6 @@ def doorHandler(evt) {
 	                def delay = duration * 60
                     runIn(delay, lockDoor)
                 }
-            }
         }
         if (evt.value == "locked") {                  // If the human locks the door then...
             ifDebug("Cancelling previous lock task...")
@@ -181,38 +203,33 @@ def disabledHandler(evt) {
         disabledSwitch.each { it ->
         disabledSwitchState = it.currentValue("switch")
             if (disabledSwitchState == "on") {
-                ifTrace("disabledHandler: disabledSwitchState = ${disabledSwitchState}")
-				state.disabled = ""
-                if (state?.paused) {
+                state.disabled = false
+                if (state?.paused == true) {
                     state.status = "(Paused)"
-                    updateLabel()
+                    state.pausedOrDisabled = true
                 } else {
-                    state.status = "${lockStatus()}"
-                    updateLabel()
+                    state.paused = false
+                    state.disabled = false
+                    state.pausedOrDisabled = false
+                    if (lock1.currentValue("lock") == "unlocked" && (contact.currentValue("contact") == "closed" || contact == null)) {
+                        ifDebug("disabledHandler: App was enabled or unpaused and lock was unlocked. Locking door.")
+                        lockDoor()
+                    }
                 }
             } else if (disabledSwitchState == "off") {
-                state.pauseButtonName = "Enable"
+                state.pauseButtonName = "Disabled by Switch"
                 state.status = "(Disabled)"
-                state.disabled = "Disabled"
+                state.disabled = true
                 updateLabel()
-                ifTrace("disabledHandler: Disabled")
             }
         }
-    } else {
-        state.disabledSwitchState = false
-        state.disabledSwitch = false
-        state.disabled = false
-        if(!state.paused) {
-            state.status = "${lockStatus()}"
-            updateLabel()
-        }
     }
+    updateLabel()
 }
 
 def deviceActivationSwitchHandler(evt) {
     ifTrace("deviceActivationSwitchHandler")
-    ifTrace("DeviceActivationSwitchHandler: state.status = ${state.status} [state.paused = ${state.paused}] [state.disabled = ${state.disabled}]")
-    checkPausedOrDisabled()
+    updateLabel()
     if (state.pausedOrDisabled == false) {
         if(deviceActivationSwitch) {
             deviceActivationSwitch.each { it ->
@@ -221,106 +238,64 @@ def deviceActivationSwitchHandler(evt) {
                 if (deviceActivationSwitchState == "on") {
                     ifDebug("deviceActivationSwitchHandler: Locking the door now")
                     lockDoor()
+                    state.status = "(Locked)"
                 } else if (deviceActivationSwitchState == "off") {
                     ifDebug("deviceActivationSwitchHandler: Unlocking the door now")
-                    unlockDoorSwitch()
-                    unschedule()
-                    updateLabel()
+                    unlockDoor()
+                    state.status = "(Unlocked)"
                 }
         }
     } else {
-        ifDebug("deviceActivationSwitchHandler: Application is paused or disabled.")
+        ifTrace("deviceActivationSwitchHandler: Application is paused or disabled.")
     }
+    updateLabel()
 }
 
 // Application Functions
 def lockDoor() {
+    ifTrace("lockDoor")
     ifDebug("Locking Door if Closed")
-    ifTrace("lockDoor: contact == ${contact}")
-    if ((contact?.currentValue("contact") == "closed" || contact == null)) {
-        ifTrace("lockDoor: contact == ${contact?.currentValue("contact")}")
-        if (contact == null) {ifDebug("No contact sensor found. Bypassing contact.")}
-    	if (contact?.currentValue("contact") == "closed") {ifDebug("Door Closed")}
-    	lock1.lock()
-        state.status = "(Locked)"
-        updateLabel()
-    } else {
-        if (contact.currentValue("contact") == "open") {
-            ifTrace("lockDoor Door was open - waiting")
-	        if (minSec) {
-	            def delay = duration
-                ifDebug("Door open will try again in $duration second(s)")
-                runIn(delay, lockDoor)
-	        } else {
-	            def delay = duration * 60
-	            ifDebug("Door open will try again in $duration minute(s)")
-                runIn(delay, lockDoor)
+    updateLabel()
+    if (state.pausedOrDisabled == false) {
+        ifTrace("lockDoor: contact == ${contact}")
+        if ((contact?.currentValue("contact") == "closed" || contact == null)) {
+            ifDebug("Door Closed")
+            lock1.lock()
+            state.status = "(Locked)"
+        } else {
+            if (contact.currentValue("contact") == "open") {
+                if (lock1.currentValue("lock") == "locked") {
+                    lock1.unlock()
+                    state.status = "(Unlocked)"
+                    updateLabel()
+                }
+                ifTrace("lockDoor Door was open - waiting")
+	            if (minSec) {
+	                def delay = duration
+                    ifDebug("Door open will try again in $duration second(s)")
+                    runIn(delay, lockDoor)
+	            } else {
+	                def delay = duration * 60
+	                ifDebug("Door open will try again in $duration minute(s)")
+                    runIn(delay, lockDoor)
+                }
 	        }
         }
     }
+    updateLabel()
 }
 
 def unlockDoor() {
     ifTrace("unlockDoor")
     ifDebug("Unlocking Door")
-    checkPausedOrDisabled()
+    updateLabel()
     if (state.pausedOrDisabled == false) {
         if (lock1.currentValue("lock") == "locked") {
             ifInfo("unlockDoor: Unlocking the door now")
             lock1.unlock()
-            state.status = "(Unlocked)"
-            updateLabel()
         }
     }
-}
-
-def lockStatus() {
-    ifTrace("lockStatus")
-    ifTrace("lockStatus: [state.status = ${state.status}] [state.paused = ${state.paused}] [state.disabled = ${state.disabled}]")
-    ifTrace("lockStatus: [lock1.currentValue(lock) = ${lock1?.currentValue("lock")}]")
-    if (lock1?.currentValue("lock") == "locked") {
-        ifTrace("lockStatus - lock1.CurrentValue locked: [state.paused = ${state?.paused}] [state.disabled = ${state?.disabled}] [state.disabled = ${state?.disabled == ""}])")
-        if ((state?.paused == false) && ((state?.disabled == false) || (state?.disabled == ""))) {
-            ifTrace("lockStatus: [state.paused = ${state?.paused}] [state.disabled = ${state?.disabled}] [state.disabled = ${state?.disabled == ""}])")
-            state.status = "(Locked)"
-            ifDebug("lockStatus - locked: state.status = ${state.status}")
-            if (state.status == "(Locked)") return "(Locked)"
-        } else {
-            ifTrace("lockStatus - lock1.CurrentValue locked: [state.paused = ${state?.paused}] [state.disabled = ${state?.disabled}]")
-        }
-    }
-    if (lock1?.currentValue("lock") == "unlocked") {
-        ifTrace("lockStatus - lock1.CurrentValue unlocked: [state.paused = ${state?.paused}] [state.disabled = ${state?.disabled}] [state.disabled = ${state?.disabled == false}]")
-        if ((state?.paused == false) && (state?.disabled == false)) {
-            state.status = "(Unlocked)"
-            ifDebug("lockStatus - Unlocked: state.status = ${state.status}")
-            if (state.status == "(Unlocked)") return "(Unlocked)"
-        } else {
-            ifTrace("lockStatus - lock1.CurrentValue unlocked: [state.paused = ${state.paused}] [state.disabled = ${state.disabled}]")
-        }
-    }
-}
-
-def checkPausedOrDisabled() {
-    ifTrace("checkPausedOrDisabled")
-    if (state.disabledSwitchState == true) {
-        if (disabledSwitchState == "Enabled") {
-            state.disabled = false
-            state.status = "${lockStatus()}"
-        } else if (disabledSwitchState == "Disabled") {
-            state.disabled = "Disabled"
-            state.status = "(Disabled)"
-        }
-    } else if (!disabledSwitchState) {
-        state.disabled = false
-        state.status = "${lockStatus()}"
-    } else {
-    state.disabled = false
-    state.status = "${lockStatus()}"
-    }
-    lockStatus()
-    if (state?.disabled || state?.paused) { state.pausedOrDisabled = true } else { state.pausedOrDisabled = false }
-    ifTrace("checkPausedOrDisabled: [state.paused = ${state.paused}] [state.disabled = ${state.disabled}] [${state.pausedOrDisabled}]")
+    updateLabel()
 }
 
 def changeMode(mode) {
@@ -329,72 +304,74 @@ def changeMode(mode) {
 	if (location.mode != mode && location.modes?.find { it.name == mode}) setLocationMode(mode)
 }
 
-
-
 //Label Updates
 void updateLabel() {
-    if (!app.label.contains("<span") && !app.label.contains("Paused") && !app.label.contains("Disabled") && state?.displayName != app.label) {
+    if ((state?.pause == true) || (state.disabled == true)) {
+        state.pausedOrDisabled = true
+    } else {
+        state.pausedOrDisabled = false
+        if ((contact?.currentValue("contact") == "open") && (lock1?.currentValue("lock") == "locked")) {
+            ifDebug("Door Open and Lock is locked, Unlocking.")
+            lock1.unlock()
+        }
+    }
+    if (!app.label.contains("<span") && !app.label.contains("Paused") && !app.label.contains("Disabled") && !app.label.contains("Locked") && !app.label.contains("Unlocked") && !app.label.contains("Unknown")) {
         state.displayName = app.label
     }
-    if (state?.status || state?.paused || state?.enableSwitch || !state?.enableSwitch) {
-        def status = state?.status
         String label = "${state.displayName} <span style=color:"
-        if (state?.enableSwitch == true) {
-            status = "(Disabled)"
-            ifDebug("updateLabel: Status set to (Disabled)")
-            label += "red"
-        } else if (state?.paused) {
-            status = "(Paused)"
-            ifDebug("updateLabel: Status set to (Paused)")
-            label += "red"
-        } else if (state.status == "(Locked)") {
-            status = "(Locked)"
-            ifDebug("updateLabel: Status set to (Locked)")
-            label += "green"
-        } else if (state.status == "(Unlocked)") {
-            status = "(Unlocked)"
-            ifDebug("updateLabel: Status set to (Unlocked)")
-            label += "orange"
-        } else {
-            status = ""
-            label += "white"
-        }
+    if (state?.disabled == true) {
+        state.status = "(Disabled)"
+        status = "(Disabled)"
+        label += "red"
+    } else if (state?.paused == true) {
+        state.status = "(Paused)"
+        status = "(Paused)"
+        label += "red"
+    } else if (lock1?.currentValue("lock") == "locked") {
+        state.status = "(Locked)"
+        status = "(Locked)"
+        label += "green"
+    } else if (lock1?.currentValue("lock") == "unlocked") {
+        state.status = "(Unlocked)"
+        status = "(Unlocked)"
+        label += "orange"
+    } else {
+        state.paused = false
+        state.disabled = false
+        state.pausedOrDisabled = false
+        state.status = "(Unknown)"
+        status = "(Unknown)"
+        label += "yellow"
+    }
     label += ">${status}</span>"
     app.updateLabel(label)
-    }
+    state.newName = label
+    if(state.newName != null) {defaultName = state.newName}
 }
 
 //Enable, Resume, Pause button
 def appButtonHandler(btn) {
     ifTrace("appButtonHandler")
-    ifTrace("appButtonHandler: [state.status = ${state.status}] [state.paused = ${state.paused}] [state.disabled = ${state.disabled}]")
-    if (btn == "Enable") {
-        ifTrace("appButtonHandler - Enable button before updateLabel: [state.status = ${state.status}] [state.paused = ${state.paused}] [state.disabled = ${state.disabled}]")
-        updateLabel()
-        ifTrace("appButtonHandler - Enable button after updateLabel: [state.status = ${state.status}] [state.paused = ${state.paused}] [state.disabled = ${state.disabled}]")
+    if (btn == "Disabled by Switch") {
+        state.disabled = false
     } else if (btn == "Resume") {
         state.disabled = false
-        state.paused = false
-        state.status = ""
-        ifTrace("appButtonHandler - Resume button before updateLabel: [state.status = ${state.status}] [state.paused = ${state.paused}] [state.disabled = ${state.disabled}]")
-        updateLabel()
-        ifTrace("appButtonHandler - Resume after updateLabel: [state.status = ${state.status}] [state.paused = ${state.paused}] [state.disabled = ${state.disabled}]")
-    } else if (btn == "Pause") {
-        state.disabled = false
         state.paused = !state.paused
-        if (state.paused) {
+    } else if (btn == "Pause") {
+        state.paused = !state.paused
+        if (state?.paused) {
             unschedule()
             unsubscribe()
-            ifTrace("appButtonHandler - Pause button before updateLabel: [state.status = ${state.status}] [state.paused = ${state.paused}] [state.disabled = ${state.disabled}]")
-            updateLabel()
-            ifTrace("appButtonHandler - Pause after updateLabel: [state.status = ${state.status}] [state.paused = ${state.paused}] [state.disabled = ${state.disabled}]")
         } else {
             initialize()
-            ifTrace("appButtonHandler: [state.status = ${state.status}] [state.paused = ${state.paused}] [state.disabled = ${state.disabled}]")
-            updateLabel()
-            ifTrace("appButtonHandler: [state.status = ${state.status}] [state.paused = ${state.paused}] [state.disabled = ${state.disabled}]")
+            state.pausedOrDisabled = false
+            if (lock1.currentValue("lock") == "unlocked" && (contact.currentValue("contact") == "closed" || contact == null)) {
+                ifTrace("appButtonHandler: App was enabled or unpaused and lock was unlocked. Locking door.")
+                lockDoor()
+            }
         }
     }
+    updateLabel()
 }
 
 // Application Page settings
@@ -403,7 +380,7 @@ private hideLoggingSection() {
 }
 
 private hideOptionsSection() {
-	(starting || ending || days || modes || manualCount) ? false : true
+	(starting || ending || days || modes || manualCount) ? true : true
 }
 
 private getAllOk() {
@@ -429,7 +406,7 @@ private getDaysOk() {
 		def day = df.format(new Date())
 		result = days.contains(day)
 	}
-    ifDebug("daysOk = ${result}")
+    ifTrace("daysOk = ${result}")
 	result
 }
 
@@ -441,7 +418,7 @@ private getTimeOk() {
 		def stop = timeToday(ending).time
 		result = start < stop ? currTime >= start && currTime <= stop : currTime <= stop || currTime >= start
 	}
-    ifDebug{"timeOk = ${result}"}
+    ifTrace{"timeOk = ${result}"}
 	result
 }
 
@@ -463,17 +440,17 @@ def getLogLevels() {
 
 def infoOff() {
     app.updateSetting("isInfo", false)
-    log.info "${state.displayName}: Info logging auto disabled."
+    log.info "${state.displayName}: Info logging disabled."
 }
 
 def debugOff() {
     app.updateSetting("isDebug", false)
-    log.info "${state.displayName}: Debug logging auto disabled."
+    log.info "${state.displayName}: Debug logging disabled."
 }
 
 def traceOff() {
     app.updateSetting("isTrace", false)
-    log.trace "${state.displayName}: Trace logging auto disabled."
+    log.trace "${state.displayName}: Trace logging disabled."
 }
 
 def disableInfoIn30() {
