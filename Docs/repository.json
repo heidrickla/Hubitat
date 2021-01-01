@@ -6,10 +6,10 @@
     {
       "id": "29a47f4d-25b1-41ff-96e9-cad04a51f14b",
       "name": "Auto Lock",
-      "category": "Security"
+      "category": "Security",
       "location": "https://raw.githubusercontent.com/heidrickla/Hubitat/main/Docs/AutoLockManifest.json",
-      "description": "Automatically lock the door after a pre-determined amount of time, when door closed after a delay, or when triggered with a switch. It will wait until the door is closed to lock, but if it's manually locked while the door is open, it will unlock the door. It also supports a disable switch and an activation switch trigger."
-      "tags": ["Automations & Groups", "Monitoring", "Safety & Security", "Tools & Utilities", "Timers", "Doors & Windows"
+      "description": "Automatically lock the door after a pre-determined amount of time, when door closed after a delay, or when triggered with a switch. It will wait until the door is closed to lock, but if it's manually locked while the door is open, it will unlock the door. It also supports a disable switch and an activation switch trigger.",
+      "tags": ["Automations & Groups", "Monitoring", "Safety & Security", "Tools & Utilities", "Timers", "Doors & Windows" ]
     }
   ]
 }
