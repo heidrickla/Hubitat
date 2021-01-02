@@ -55,7 +55,7 @@ def mainPage() {
     section() {
         input type: "bool", name: "minSec", title: "Default is minutes. Use seconds instead?", required: true, defaultValue: false
         input "duration", "number", title: "Lock it how many minutes/seconds later?", required: true, defaultValue: 10
-        input "retryLock", "bool", title: "Enable retries if lock fails to change state.", require: false, defaultValue: true
+//        input "retryLock", "bool", title: "Enable retries if lock fails to change state.", require: false, defaultValue: true
         input "maxRetries", "number", title: "Maximum number of retries?", require: false, defaultValue: 3
         input "delayBetweenRetries", "number", title: "Delay between retries?", require: false, defaultValue: 5
 //        input "autoRefreshXMinutes", "enum", title: "Force a refresh of the state of the lock?", require: false, options: ["Never", "1", "5", "15", "30", "60"], defaultValue: "Never"
