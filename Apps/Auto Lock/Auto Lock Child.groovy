@@ -361,7 +361,7 @@ def checkLockedStatus() {
     if (lock1.currentValue("lock") == "locked") {
         state.status = "(Locked)"
         ifTrace("checkLockedStatus: The lock was Locked successfully")
-    } else if (lock1.CurrentValue("lock") != "locked") {
+    } else if (lock1.currentValue("lock") != "locked") {
         state.status = "(Unlocked)"
         countLock = (countLock - 1)
         if (countLock > -1) {
@@ -409,7 +409,7 @@ def checkUnlockedStatus() {
     if (lock1.currentValue("lock") == "unlocked") {
         state.status = "(Unlocked)"
         ifTrace("checkUnlockedStatus: The lock was unlocked successfully")
-    } else if (lock1.CurrentValue("lock") != "unlocked")  {
+    } else if (lock1.currentValue("lock") != "unlocked")  {
         state.status = "(Locked)"
         countUnlock = (countUnlock - 1)
         if (countUnlock > -1) {
