@@ -219,7 +219,7 @@ def doorHandler(evt) {
 	                def delayLock = durationLock * 60
                     runIn(delayLock, lockDoor)
                 }
-            if (evt.value == "opened") {
+            if (evt.value == "open") {
                     ifDebug("Door open reset previous lock task...")
                     unschedule(lockDoor)
                     if (minSecLock) {
