@@ -38,6 +38,7 @@ def mainPage() {
     ifTrace("mainPage")
     turnOffLoggingTogglesIn30()
     setPauseButtonName()
+    diagnosticHandler()
     section("") {
       input name: "Pause", type: "button", title: state.pauseButtonName, submitOnChange:true
     }
@@ -47,8 +48,8 @@ def mainPage() {
         updateLabel()
     }
     section("") {
-        input "lock1", "capability.lock", title: "Lock: [${lock1.currentValue("lock")}]", required: true, submitOnChange: true
-        input "contact", "capability.contactSensor", title: "Door Contact: [${contact.currentValue("contact")}]", required: false, submitOnChange: true
+        input "lock1", "capability.lock", title: "Lock: [${lock1Status}]", required: true, submitOnChange: true
+        input "contact", "capability.contactSensor", title: "Door Contact: [${contactStatus}]", required: false, submitOnChange: true
         input "refresh", "bool", title: "Click here to refresh the device status", submitOnChange:true
 //        input "autoRefreshXMinutesLock", "enum", title: "Force a refresh of the state of the lock?", require: false, options: ["Never", "1", "5", "15", "30", "60"], defaultValue: "Never"
         app.updateSetting("refresh",[value:"false",type:"bool"])
@@ -108,7 +109,6 @@ def updated() {
 def initialize() {
     ifTrace("initialize")
     ifDebug("Settings: ${settings}")
-//    subscribe(lock1, "lock", doorHandler)
     subscribe(lock1, "lock", lockHandler)
     subscribe(contact, "contact.open", doorHandler)
     subscribe(contact, "contact.closed", doorHandler)
@@ -120,6 +120,7 @@ def initialize() {
     subscribe(contact, "contact.closed", diagnosticHandler)
     subscribe(lock1, "battery", batteryHandler)
     subscribe(contact, "battery", batteryHandler)
+    diagnosticHandler()
     updateLabel()
     getAllOk()
 }
@@ -136,10 +137,10 @@ def diagnosticHandler(evt) {
         ifTrace("diagnosticHandler: lock1Status = ${lock1Status}")
     }
     
-    if (contactSensor?.currentValue("contact") != null) {
-        contactStatus = contactSensor.currentValue("contact")
-    } else if (contactSensor?.latestValue("contact") != null) {
-        contactStatus = contactSensor.latestValue("contact")
+    if (contact?.currentValue("contact") != null) {
+        contactStatus = contact.currentValue("contact")
+    } else if (contact?.latestValue("contact") != null) {
+        contactStatus = contact.latestValue("contact")
     } else {
         contactStatus = " "   
     }
