@@ -8,7 +8,7 @@
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.4"
+	state.version = "1.1.5"
 }
 
 definition(
@@ -34,15 +34,15 @@ preferences {
 }
 
 def mainPage() {    
-    dynamicPage(name: "", title: "", install: true, uninstall: true, refreshInterval:0) {
+    dynamicPage(name: "mainPage", install: true, uninstall: true, refreshInterval:0) {
     ifTrace("mainPage")
     turnOffLoggingTogglesIn30()
-        
     setPauseButtonName()
     section("") {
       input name: "Pause", type: "button", title: state.pauseButtonName, submitOnChange:true
     }
     section("") {
+        if ((thisName == null) || (thisName == "null <span style=color:pink>(Unknown)</span>")) {thisName = "Enter a name for this app."}
         input name: "thisName", type: "text", title: "", required:true, submitOnChange:true
         updateLabel()
     }
@@ -50,30 +50,38 @@ def mainPage() {
         input "lock1", "capability.lock", title: "Lock: ", required: true, submitOnChange: true
         input "contact", "capability.contactSensor", title: "Door Contact: ", required: false, submitOnChange: true
         input "refresh", "bool", title: "Click here to refresh the device status", submitOnChange:true
+//        input "autoRefreshXMinutesLock", "enum", title: "Force a refresh of the state of the lock?", require: false, options: ["Never", "1", "5", "15", "30", "60"], defaultValue: "Never"
         app.updateSetting("refresh",[value:"false",type:"bool"])
     }
-    section() {
-        input type: "bool", name: "minSec", title: "Default is minutes. Use seconds instead?", required: true, defaultValue: false
-        input "duration", "number", title: "Lock it how many minutes/seconds later?", required: true, defaultValue: 10
-//        input "retryLock", "bool", title: "Enable retries if lock fails to change state.", require: false, defaultValue: true
-        input "maxRetries", "number", title: "Maximum number of retries?", require: false, defaultValue: 3
-        input "delayBetweenRetries", "number", title: "Delay between retries?", require: false, defaultValue: 5
-//        input "autoRefreshXMinutes", "enum", title: "Force a refresh of the state of the lock?", require: false, options: ["Never", "1", "5", "15", "30", "60"], defaultValue: "Never"
+    section(title: "Locking Options:", hideable: true, hidden: hideLockOptionsSection()) {
+        input "minSecLock", "bool", title: "Default is minutes. Use seconds instead?", required: true, defaultValue: false
+        input "durationLock", "number", title: "Lock it how many minutes/seconds later?", required: true, defaultValue: 10
+        input "retryLock", "bool", title: "Enable retries if lock fails to change state.", require: false, defaultValue: true
+        input "maxRetriesLock", "number", title: "Maximum number of retries?", required: false, defaultValue: 3
+        input "delayBetweenRetriesLock", "number", title: "Delay between retries in second(s)?", require: false, defaultValue: 5
+
     }
-    section("Logging Options", hideable: true, hidden: hideLoggingSection()) {
-            input "isInfo", "bool", title: "Enable Info logging for 30 minutes", submitOnChange: false, defaultValue: false
-            input "isDebug", "bool", title: "Enable debug logging for 30 minutes", submitOnChange: false, defaultValue: false
-		    input "isTrace", "bool", title: "Enable Trace logging for 30 minutes", submitOnChange: false, defaultValue: false
-            input "ifLevel","enum", title: "IDE logging level",required: true, options: getLogLevels(), defaultValue : "1"
-            paragraph "NOTE: IDE logging level overrides the temporary logging selections."
+    section(title: "Unlocking Options:", hideable: true, hidden: hideUnlockOptionsSection()) {
+        input "minSecUnlock", "bool", title: "Default is minutes. Use seconds instead?", required: true, defaultValue: false
+        input "durationUnlock", "number", title: "Unlock it how many minutes/seconds later?", required: true, defaultValue: 2
+        input "retryUnlock", "bool", title: "Enable retries if unlock fails to change state.", require: false, defaultValue: true
+        input "maxRetriesUnlock", "number", title: "Maximum number of retries?", required: false, defaultValue: 3
+        input "delayBetweenRetriesUnlock", "number", title: "Delay between retries in second(s)?", require: false, defaultValue: 3
+    }
+    section(title: "Logging Options:", hideable: true, hidden: hideLoggingSection()) {
+        input "isInfo", "bool", title: "Enable Info logging for 30 minutes", submitOnChange: false, defaultValue: false
+        input "isDebug", "bool", title: "Enable debug logging for 30 minutes", submitOnChange: false, defaultValue: false
+        input "isTrace", "bool", title: "Enable Trace logging for 30 minutes", submitOnChange: false, defaultValue: false
+        input "ifLevel","enum", title: "IDE logging level",required: true, options: getLogLevels(), defaultValue : "1"
+        paragraph "NOTE: IDE logging level overrides the temporary logging selections."
     }
     section(title: "Only Run When:", hideable: true, hidden: hideOptionsSection()) {
-			def timeLabel = timeIntervalLabel()
-			href "timeIntervalInput", title: "Only during a certain time", description: timeLabel ?: "Tap to set", state: timeLabel ? "complete" : null
-			input "days", "enum", title: "Only on certain days of the week", multiple: true, required: false,
-			    options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-			input "modes", "mode", title: "Only when mode is", multiple: true, required: false
-            input "disabledSwitch", "capability.switch", title: "Switch to Enable and Disable this app", submitOnChange:true, required:false, multiple:true
+        def timeLabel = timeIntervalLabel()
+        href "timeIntervalInput", title: "Only during a certain time", description: timeLabel ?: "Tap to set", state: timeLabel ? "complete" : null
+        input "days", "enum", title: "Only on certain days of the week", multiple: true, required: false,
+            options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        input "modes", "mode", title: "Only when mode is", multiple: true, required: false
+        input "disabledSwitch", "capability.switch", title: "Switch to Enable and Disable this app", submitOnChange:true, required:false, multiple:true
     }
     }
 }
@@ -83,8 +91,10 @@ def installed() {
     ifTrace("installed")
     ifDebug("Auto Lock Door installed.")
     state.installed = true
-    if (batteryStatus == null) {lock1BatteryStatus = " "}
-    if (contactStatus == null) {scontactBatteryStatus = " "}
+    if (lock1Status == null) {lock1Status = " "}
+    if (contactStatus == null) {contactStatus = " "}
+    if (lock1batteryStatus == null) {lock1BatteryStatus = " "}
+    if (contactBatteryStatus == null) {contactBatteryStatus = " "}
     initialize()
 }
 
@@ -99,7 +109,8 @@ def updated() {
 def initialize() {
     ifTrace("initialize")
     ifDebug("Settings: ${settings}")
-    subscribe(lock1, "lock", doorHandler)
+//    subscribe(lock1, "lock", doorHandler)
+    subscribe(lock1, "lock", lockHandler)
     subscribe(contact, "contact.open", doorHandler)
     subscribe(contact, "contact.closed", doorHandler)
     subscribe(disabledSwitch, "switch.on", disabledHandler)
@@ -119,13 +130,13 @@ def diagnosticHandler(evt) {
     ifTrace("diagnosticHandler")
     if (lock1?.currentValue("lock") != null) {
         lock1Status = lock1.currentValue("lock")
-        
     } else if (lock1?.latestValue("lock") != null) {
         lock1Status = lock1.latestValue("lock")
     } else {
         lock1Status = " "
         ifTrace("diagnosticHandler: lock1Status = ${lock1Status}")
     }
+    
     if (contactSensor?.currentValue("contact") != null) {
         contactStatus = contactSensor.currentValue("contact")
     } else if (contactSensor?.latestValue("contact") != null) {
@@ -153,6 +164,46 @@ def batteryHandler(evt) {
     }
 }
 
+def lockHandler(evt) {
+    ifTrace("lockHandler")
+    if (getAllOk() != true) {
+    } else {
+        updateLabel()
+        if (state?.pausedOrDisabled == false) {
+            if (((evt.value) == "locked") && (contact.currentValue("open"))) {
+                ifDebug("Lock is locked while door was open. Unlocking door.")
+                lock1.unlock()
+                countUnlock = maxRetriesUnlock
+                unschedule(lockDoor)
+                if (minSecUnlock) {
+                    def delayUnlock = durationUnlock
+                    runIn(delayUnlock, unlockDoor)
+                } else {
+	                def delayUnlock = durationUnlock * 60
+                    runIn(delayUnlock, unlockDoor)
+                }
+            } else if (((evt.value) == "locked") && (contact?.currentValue("closed"))) {
+                ifDebug("Cancelling previous lock task...")
+                unschedule(lockDoor)                  // ...we don't need to lock it later.
+                state.status = "(Locked)"
+            } else {                                  // If the door is unlocked then...
+                countLocked = maxRetries
+                state.status = "(Unlocked)"
+                if (minSecLock) {
+	                def delayLock = durationLock
+                    ifDebug("Re-arming lock in in $duration second(s)")
+                    runIn(delayLock, lockDoor)
+                } else {
+                    def delayLock = durationLock * 60
+	                ifDebug("Re-arming lock in in $duration minute(s)")
+                    runIn(delayLock, lockDoor)
+                }
+            }
+        }
+    updateLabel()
+    }
+}
+
 def doorHandler(evt) {
     ifTrace("doorHandler")
     if (getAllOk() != true) {
@@ -160,35 +211,27 @@ def doorHandler(evt) {
         updateLabel()
         if (state?.pausedOrDisabled == false) {
             if (evt.value == "closed") {ifDebug("Door Closed")}
+                unschedule(lockDoor)
+                if (minSecLock) {
+                    def delayLock = durationLock
+                    runIn(delayLock, lockDoor)
+                } else {
+	                def delayLock = durationLock * 60
+                    runIn(delayLock, lockDoor)
+                }
             if (evt.value == "opened") {
                     ifDebug("Door open reset previous lock task...")
                     unschedule(lockDoor)
-                    if (minSec) {
-                        def delay = duration
-                        runIn(delay, lockDoor)
+                    if (minSecLock) {
+                        def delayLock = durationLock
+                        runIn(delayLock, lockDoor)
                     } else {
-	                    def delay = duration * 60
-                        runIn(delay, lockDoor)
+	                    def delayLock = durationLock * 60
+                        runIn(delayLock, lockDoor)
                     }
             }
-            if (evt.value == "locked") {                  // If the human locks the door then...
-                ifDebug("Cancelling previous lock task...")
-                unschedule(lockDoor)                  // ...we don't need to lock it later.
-                state.status = "(Locked)"
-            } else {                                      // If the door is unlocked then...
-                state.status = "(Unlocked)"
-                if (minSec) {
-	                def delay = duration
-                    ifDebug("Re-arming lock in in $duration second(s)")
-                    runIn(delay, lockDoor)
-                } else {
-                    def delay = duration * 60
-	                ifDebug("Re-arming lock in in $duration minute(s)")
-                    runIn(delay, lockDoor)
-                }
-            }
         }
-      updateLabel()
+    updateLabel()
     }
 }
 
@@ -211,14 +254,12 @@ def disabledHandler(evt) {
                         state.pausedOrDisabled = false
                         if (lock1?.currentValue("lock") == "unlocked" && (contact?.currentValue("contact") == "closed" || contact == null)) {
                             ifDebug("disabledHandler: App was enabled or unpaused and lock was unlocked. Locking door.")
-                            lock1.lock()
-                            count = maxRetries
-                            if (minSec) {
-                                def delay = duration
-                                runIn(delay, checkLockedStatus)
+                            if (minSecLock) {
+                                def delayLock = durationLock
+                                runIn(delayLock, lockDoor)
                             } else {
-	                            def delay = duration * 60
-                                runIn(delay, checkLockedStatus)
+	                            def delayLock = durationLock * 60
+                                runIn(delayLock, lockDoor)
                             }
                         }
                     }
@@ -248,24 +289,23 @@ def deviceActivationSwitchHandler(evt) {
                     if (deviceActivationSwitchState == "on") {
                         ifDebug("deviceActivationSwitchHandler: Locking the door now")
                         lock1.lock()
-                        count = maxRetries
-                        if (minSec) {
-                            def delay = duration
-                            runIn(delay, checkLockedStatus)
+                        if (minSecLock) {
+                            def delayLock = durationLock
+                            runIn(delayLock, lockDoor)
                         } else {
-	                        def delay = duration * 60
-                            runIn(delay, checkLockedStatus)
+	                        def delayLock = durationLock * 60
+                            runIn(delayLock, lockDoor)
                         }
                     } else if (deviceActivationSwitchState == "off") {
                         ifDebug("deviceActivationSwitchHandler: Unlocking the door now")
                         lock1.unlock()
-                        count = maxRetries
-                        if (minSec) {
-                            def delay = duration
-                            runIn(delay, checkUnlockedStatus)
+                        countUnlock = maxRetriesUnlock
+                        if (minSecUnlock) {
+                            def delayUnlock = durationUnlock
+                            runIn(delayUnlock, unlockDoor)
                         } else {
-	                        def delay = duration * 60
-                            runIn(delay, checkUnlockedStatus)
+	                        def delayUnlock = durationUnlock * 60
+                            runIn(delayUnlock, unlockDoor)
                         }
                    }
             }
@@ -289,36 +329,24 @@ def lockDoor() {
             if ((contact?.currentValue("contact") == "closed" || contact == null)) {
                 ifDebug("Door Closed")
                 lock1.lock()
-                count = maxRetries
-                if (minSec) {
-                    def delay = duration
-                    runIn(delay, checkLockedStatus)
+                countLock = maxRetriesLock
+                if (minSecLock) {
+                    def delayLock = durationLock
+                    runIn(delayLock, checkLockedStatus)
                 } else {
-	                def delay = duration * 60
-                    runIn(delay, checkLockedStatus)
+	                def delayLock = durationLock * 60
+                    runIn(delayLock, checkLockedStatus)
                     } 
             } else {
-                if (contact?.currentValue("contact") == "open") {
-                    if (lock1?.currentValue("lock") == "locked") {
-                        count = maxRetries
-                        lock1.unlock()
-                        if (minSec) {
-                                def delay = duration
-                                runIn(delay, checkUnlockedStatus)
-                            } else {
-	                            def delay = duration * 60
-                                runIn(delay, checkUnlockedStatus)
-                            }
-                    }
-                    ifTrace("lockDoor Door was open - waiting")
-                    if (minSec) {
-                        def delay = duration
-                        runIn(delay, lockDoor)
-                        ifDebug("Door open will try again in $duration second(s)")
+                if ((contact?.currentValue("contact") == "open") && (lock1?.currentValue("lock") == "locked")) {
+                    countUnlocked = maxRetriesUnlocked
+                    lock1.unlock()
+                    if (minSecUnlocked) {
+                        def delayUnlock = durationUnlock
+                        runIn(delayUnlock, checkUnlockedStatus)
                     } else {
-	                    def delay = duration * 60
-                        runIn(delay, lockDoor)
-                        ifDebug("Door open will try again in $duration minute(s)")
+	                    def delayUnlock = durationUnlock * 60
+                        runIn(delayUnlock, checkUnlockedStatus)
                     }
                 }
 	        }
@@ -335,9 +363,9 @@ def checkLockedStatus() {
         ifTrace("checkLockedStatus: The lock was Locked successfully")
     } else if (lock1.CurrentValue("lock") != "locked") {
         state.status = "(Unlocked)"
-        count = (count - 1)
-        if (count > -1) {
-            runIn(delayBetweenRetries, retryLockingCommand)
+        countLock = (countLock - 1)
+        if (countLock > -1) {
+            runIn(delayBetweenRetriesLock, retryLockingCommand)
         } else {
             ifInfo("Maximum retries exceeded. Giving up on locking door.")
         }
@@ -347,8 +375,10 @@ def checkLockedStatus() {
 
 def retryLockingCommand() {
     ifTrace("retryLockingCommand")
-    lock1.lock()
-    runIn(delay, checkLockedStatus())
+    if (retryLock == true) {
+       lock1.lock()
+       runIn(delayLock, checkLockedStatus)
+    }
 }
 
 def unlockDoor() {
@@ -361,13 +391,13 @@ def unlockDoor() {
         if (state?.pausedOrDisabled == false) {
             ifInfo("unlockDoor: Unlocking the door now")
             lock1.unlock()
-            count = maxRetries
-            if (minSec) {
-                def delay = duration
-                runIn(delay, checkUnlockedStatus)
+            countUnlock = maxRetriesUnlock
+            if (minSecUnlock) {
+                def delayUnlock = durationUnlock
+                runIn(delayUnlock, checkUnlockedStatus)
             } else {
-	            def delay = duration * 60
-                runIn(delay, checkUnlockedStatus)
+	            def delayUnlock = durationUnlock * 60
+                runIn(delayUnlock, checkUnlockedStatus)
             }
         }
     updateLabel()
@@ -381,9 +411,9 @@ def checkUnlockedStatus() {
         ifTrace("checkUnlockedStatus: The lock was unlocked successfully")
     } else if (lock1.CurrentValue("lock") != "unlocked")  {
         state.status = "(Locked)"
-        count = (count - 1)
-        if (count > -1) {
-            runIn(delayBetweenRetries, retryUnlockingCommand)
+        countUnlock = (countUnlock - 1)
+        if (countUnlock > -1) {
+            runIn(delayBetweenRetriesUnlock, retryUnlockingCommand)
         } else {
             ifInfo("Maximum retries exceeded. Giving up on unlocking door.")
         }
@@ -393,8 +423,10 @@ def checkUnlockedStatus() {
 
 def retryUnlockingCommand() {
     ifTrace("retryUnlockingCommand")
-    lock1.unlock()
-    runIn(delay, checkUnlockedStatus())
+    if (retryUnlock == true) {
+        lock1.unlock()
+        runIn(delayUnlock, checkUnlockedStatus())
+    }
 }
 
 //Label Updates
@@ -479,12 +511,24 @@ def setPauseButtonName() {
 }
 
 // Application Page settings
+private hideLockOptionsSection() {
+	(minSecLock || durationLock || retryLock || maxRetriesLock || delayBetweenRetriesLock) ? true : true
+}
+
+private hideUnlockOptionsSection() {
+	(minSecUnlock || durationUnlock || retryUnlock || maxRetriesUnlock || delayBetweenRetriesUnlock) ? true : true
+}
+
 private hideLoggingSection() {
 	(isInfo || isDebug || isTrace || ifLevel) ? true : true
 }
 
 private hideOptionsSection() {
 	(starting || ending || days || modes || manualCount) ? true : true
+}
+
+private timeIntervalLabel() {
+	(starting && ending) ? hhmm(starting) + "-" + hhmm(ending, "h:mm a z") : ""
 }
 
 def getAllOk() {
@@ -532,10 +576,6 @@ private hhmm(time, fmt = "h:mm a") {
 	def f = new java.text.SimpleDateFormat(fmt)
 	f.setTimeZone(location.timeZone ?: timeZone(time))
 	f.format(t)
-}
-
-private timeIntervalLabel() {
-	(starting && ending) ? hhmm(starting) + "-" + hhmm(ending, "h:mm a z") : ""
 }
 
 // Logging functions
