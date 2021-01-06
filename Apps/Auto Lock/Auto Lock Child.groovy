@@ -9,7 +9,7 @@ import groovy.transform.Field
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.12"
+	state.version = "1.1.13"
 }
 
 definition(
