@@ -9,7 +9,7 @@ import groovy.transform.Field
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.14"
+	state.version = "1.1.15"
 }
 
 definition(
@@ -106,7 +106,7 @@ def mainPage() {
         if (detailedInstructions == true) {paragraph "Enable Trace logging for 30 minutes will enable trace logs to show up in the Hubitat logs for 30 minutes after which it will turn them off. Useful for following the logic inside the application but usually not neccesary."}
         input "isTrace", "bool", title: "Enable Trace logging for 30 minutes", submitOnChange: false, required:false, defaultValue: false
         if (detailedInstructions == true) {paragraph "IDE logging level is used to permanantly set your logging level for the application.  If it is set higher than any temporary logging options you enable, it will override them.  If it is set lower than temporary logging options, they will take priority until their timer expires.  This is useful if you prefer you logging set to a low level and then can use the logging toggles for specific use cases so you dont have to remember to go back in and change them later.  It's also useful if you are experiencing issues and need higher logging enabled for longer than 30 minutes."}
-        input "ifLevel","enum", title: "IDE logging level",required: true, options: getLogLevels(), defaultValue : "1"
+        input "ifLevel","enum", title: "IDE logging level",required: true, options: logLevelOptions, defaultValue : "1"
     }
     section(title: "Only Run When:", hideable: true, hidden: hideOptionsSection()) {
         def timeLabel = timeIntervalLabel()
@@ -142,13 +142,13 @@ def mainPage() {
 ]
 
 @Field static List<Map<String,String>> logLevelOptions = [
-    ["1": "Bolt/frame strike protection"],
-    ["2": "Presence unlock"],
-    ["3": "Fire/medical panic unlock"],
-    ["4": "Switch triggered unlock"],
-    ["5": "State sync fix"],
-    ["6": "Prevent unlocking under any circumstances"]
+    ["0": "None"],
+    ["1": "Info"],
+    ["2": "Debug"],
+    ["3": "Trace"]
 ]
+
+
 
 def installed() {
     ifTrace("installed")
@@ -188,8 +188,7 @@ def initialize() {
     subscribe(lock1, "battery", diagnosticHandler)
     subscribe(contact, "battery", diagnosticHandler)
     subscribe(unlockPresenceSensor, "presence", diagnosticHandler)
-    diagnosticHandler()
-    updateLabel()
+//    diagnosticHandler()
     getAllOk()
 }
 
@@ -735,21 +734,24 @@ def ifWarn(msg) {
 }
 
 def ifInfo(msg) {
-    def logL = 0
-    if (ifLevel) {logL = ifLevel.toInteger()}
-    if ((isInfo) || (logL > 0)) {log.info "${state.thisName}: ${msg}"} else {return}
+    if ((!settings.logLevelOptions?.contains("1")) && (isInfo == false)) {return}//bail
+    else if ((settings.logLevelOptions?.contains("1") || settings.logLevelOptions?.contains("2") || settings.logLevelOptions?.contains("3"))) {
+		log.info "${state.thisName}: ${msg}"
+	}
 }
 
 def ifDebug(msg) {
-    def logL = 0
-    if (ifLevel) {logL = ifLevel.toInteger()}
-    if ((isDebug) || (logL > 1)) {log.debug "${state.thisName}: ${msg}"} else {return}
+    if ((!settings.logLevelOptions?.contains("2")) && (isDebug == false)) {return}//bail
+    else if (settings.logLevelOptions?.contains("2") || settings.logLevelOptions?.contains("3")) {
+		log.debug "${state.thisName}: ${msg}"
+    }
 }
 
-def ifTrace(msg) {
-    def logL = 0
-    if (ifLevel) {logL = ifLevel.toInteger()}
-    if ((isTrace) || (logL > 2)) {log.trace "${state.thisName}: ${msg}"} else {return}
+def ifTrace(msg) {       
+    if ((!settings.logLevelOptions?.contains("3")) && (isTrace == false)) {return}//bail
+    else if (settings.logLevelOptions?.contains("3")) {
+		log.trace "${state.thisName}: ${msg}"
+    }
 }
 
 def getVariableInfo() {
