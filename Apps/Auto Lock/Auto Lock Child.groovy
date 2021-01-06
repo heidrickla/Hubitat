@@ -9,7 +9,7 @@ import groovy.transform.Field
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.17"
+	state.version = "1.1.18"
 }
 
 definition(
@@ -105,8 +105,8 @@ def mainPage() {
         input "isDebug", "bool", title: "Enable debug logging for 30 minutes", submitOnChange: false, required:false, defaultValue: false
         if (detailedInstructions == true) {paragraph "Enable Trace logging for 30 minutes will enable trace logs to show up in the Hubitat logs for 30 minutes after which it will turn them off. Useful for following the logic inside the application but usually not neccesary."}
         input "isTrace", "bool", title: "Enable Trace logging for 30 minutes", submitOnChange: false, required:false, defaultValue: false
-        if (detailedInstructions == true) {paragraph "IDE logging level is used to permanantly set your logging level for the application.  If it is set higher than any temporary logging options you enable, it will override them.  If it is set lower than temporary logging options, they will take priority until their timer expires.  This is useful if you prefer you logging set to a low level and then can use the logging toggles for specific use cases so you dont have to remember to go back in and change them later.  It's also useful if you are experiencing issues and need higher logging enabled for longer than 30 minutes."}
-        input "ifLevel","enum", title: "IDE logging level",required: true, options: logLevelOptions, defaultValue : "1"
+        if (detailedInstructions == true) {paragraph "Logging level is used to permanantly set your logging level for the application.  If it is set higher than any temporary logging options you enable, it will override them.  If it is set lower than temporary logging options, they will take priority until their timer expires.  This is useful if you prefer you logging set to a low level and then can use the logging toggles for specific use cases so you dont have to remember to go back in and change them later.  It's also useful if you are experiencing issues and need higher logging enabled for longer than 30 minutes."}
+        input "ifLevel","enum", title: "Logging level",required: true, options: logLevelOptions, defaultValue : "1"
     }
     section(title: "Only Run When:", hideable: true, hidden: hideOptionsSection()) {
         def timeLabel = timeIntervalLabel()
@@ -131,15 +131,16 @@ def mainPage() {
     ["6": "Prevent unlocking under any circumstances"]
 ]
 
-@Field static List<Map<String,String>> daysOptions = [
-    ["1": "Monday"],
-    ["2": "Tuesday"],
-    ["3": "Wednesday"],
-    ["4": "Thursday"],
-    ["5": "Friday"],
-    ["6": "Saturday"],
-    ["7": "Sunday"]
+@Field static List<Map<String>> daysOptions = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday"
 ]
+
 
 @Field static List<Map<String,String>> logLevelOptions = [
     ["0": "None"],
@@ -750,14 +751,16 @@ def ifTrace(msg) {
 }
 
 def getVariableInfo() {
-    ifTrace("state.thisName = ${state.thisName}")
-    ifTrace("getAllOk = ${getAllOk()}")
-    ifTrace("getModeOk = ${getModeOk()}")
-    ifTrace("getDaysOk = ${getDaysOk()}")
-    ifTrace("getTimeOk = ${getTimeOk()}")
-    ifTrace("pausedOrDisabled = ${state.pausedOrDisabled}")
-    ifTrace("state.disabled = ${state.disabled}")
-    ifTrace("state.paused = ${state.paused}")
+    log.info "state.thisName = ${state.thisName}"
+    log.info "getAllOk = ${getAllOk()}"
+    log.info "getModeOk = ${getModeOk()}"
+    log.info "getDaysOk = ${getDaysOk()}"
+    log.info "getTimeOk = ${getTimeOk()}"
+    log.info "days = ${days}"
+    log.info "daysOptions = ${daysOptions}"
+    log.info "pausedOrDisabled = ${state.pausedOrDisabled}"
+    log.info "state.disabled = ${state.disabled}"
+    log.info "state.paused = ${state.paused}"
     log.info "settings.ifLevel?.contains(1) = ${settings.ifLevel?.contains("1")}"
     log.info "settings.ifLevel?.contains(2) = ${settings.ifLevel?.contains("2")}"
     log.info "settings.ifLevel?.contains(3) = ${settings.ifLevel?.contains("3")}"
