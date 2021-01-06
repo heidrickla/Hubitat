@@ -1,28 +1,33 @@
-/* 
- *   Hubitat Import URL: https://raw.githubusercontent.com/heidrickla/Hubitat/Apps/Auto%20Lock/Auto%20Lock%20Child.groovy
- *
- *   Author Chris Sader, modified by Lewis Heidrick with permission from Chris to takeover the project.
- *   
- *   12/28/2020 - Project Published to GitHub
- */
+/**
+*  Bathroom Humidity Fan
+*
+*  Turns on a fan when you start taking a shower... turns it back off when you are done.
+*    -Uses humidity change rate for rapid response
+*    -Timeout option when manaully controled (for stench mitigation)
+*    -Child/Parent with pause/resume (Thanks to Lewis.Heidrick!)
+*
+*  Copyright 2018 Craig Romei
+*  GNU General Public License v2 (https://www.gnu.org/licenses/gpl-2.0.txt)
+*
+*/
 import groovy.transform.Field
 
 def setVersion() {
-    state.name = "Auto Lock"
-	state.version = "1.1.12"
+    state.version = "1.1.13" // Version number of this app
+    state.InternalName = "BathroomHumidityFan"   // this is the name used in the JSON file for this app
 }
 
 definition(
-    name: "Auto Lock Child",
-    namespace: "heidrickla",
-    author: "Lewis Heidrick",
-    description: "Automatically locks a specific door after X minutes/seconds when closed and unlocks it when open.",
+    name: "Bathroom Humidity Fan Child",
+    namespace: "Craig.Romei",
+    author: "Craig Romei",
+    description: "Control a fan (switch) based on relative humidity.",
     category: "Convenience",
-    parent: "heidrickla:Auto Lock",
+    parent: "Craig.Romei:Bathroom Humidity Fan",
     iconUrl: "",
     iconX2Url: "",
     iconX3Url: "",
-    importUrl: "https://raw.githubusercontent.com/heidrickla/Hubitat/Apps/Auto%20Lock/Auto%20Lock%20Child.groovy")
+    importUrl: "https://raw.githubusercontent.com/napalmcsr/Hubitat_Napalmcsr/master/Apps/BathroomHumidityFan/BathroomHumidityChild.src")
 
 preferences {
     page(name: "mainPage")
@@ -30,140 +35,101 @@ preferences {
 		section {
 			input "starting", "time", title: "Starting", required: false
 			input "ending", "time", title: "Ending", required: false
-        }
+       }
     }
 }
 
 def mainPage() {    
-    dynamicPage(name: "mainPage", install: true, uninstall: true, refreshInterval:0) {
+    dynamicPage(name: "", title: "", install: true, uninstall: true, refreshInterval:0) {
     ifTrace("mainPage")
     turnOffLoggingTogglesIn30()
     setPauseButtonName()
     diagnosticHandler()
-
+        
     section("") {
-      input name: "Pause", type: "button", title: state.pauseButtonName, submitOnChange:true
-      input "detailedInstructions", "bool", title: "Enable detailed instructions?", submitOnChange:true, required: false, defaultValue: false
+        input name: "Pause", type: "button", title: state.pauseButtonName, submitOnChange:true
     }
     section("") {
         if ((state.thisName == null) || (state.thisName == "null <span style=color:white> </span>")) {state.thisName = "Enter a name for this app."}
-        input name: "thisName", type: "text", title: "", required:true, submitOnChange:true, defaultValue: "Enter a name for this app."
+        input name: "thisName", type: "text", title: "", required:true, submitOnChange:true
         state.thisName = thisName
         updateLabel()
     }
-    section("") {
-        if (detailedInstructions == true) {paragraph "This is the lock that will all actions will activate against. The app watches for locked or unlocked status sent from the device.  If it cannot determine the current status, the last known status of the lock will be used.  If there is not a last status available and State sync fix is enabled it will attempt to determine its' state, otherwise it will default to a space. Once a device is selected, the current status will appear on the device.  The status can be updated by refreshing the page or clicking the refresh status toggle."}
-        input "lock1", "capability.lock", title: "Lock: [ ${lock1Status} ]", submitOnChange: true, required: true
-        if (detailedInstructions == true) {paragraph "This is the contact sensor that will be used to determine if the door is open.  The lock will not lock while the door is open.  If it does become locked and Bolt/Frame strike protection is enabled, it will immediately try to unlock to keep from hitting the bolt against the frame. If you are having issues with your contact sensor or do not use one, it is recommended to disable Bolt/frame strike protection as it will interfere with the operation of the lock."}
-        input "contact", "capability.contactSensor", title: "Door Contact: [ ${contactStatus} ]", submitOnChange: true, required: false
-        if (detailedInstructions == true) {paragraph "This option performs an immediate update to the current status of the Lock, Contact Sensor, Presence Sensor, and Status of the application.  It will automatically reset back to off after activated."}
-        input "refresh", "bool", title: "Click here to refresh the device status", submitOnChange:true, required: false
+	section("") {
+        input "refresh", "bool", title: "Click here to refresh the device status", submitOnChange:true
+        input "FanSwitch", "capability.switch", title: "${fanSwitchStatus}", required: true, submitOnChange:true
+        input "HumiditySensor", "capability.relativeHumidityMeasurement", title: "${humiditySensorStatus}", required: true, submitOnChange:true
+        paragraph "NOTE: The humidity sensor you select will need to report about 5 min or less."
+        input "humidityResponseMethod", "enum", title: "Humidity Response Method", options: humidityResponseMethodOptions, defaultValue: 1, required: true, multiple: false, submitOnChange:true
         app.updateSetting("refresh",[value:"false",type:"bool"])
-    }
-    section(title: "Locking Options:", hideable: true, hidden: hideLockOptionsSection()) {
-        if (detailedInstructions == true) {paragraph "Use seconds instead changes the timer used in the application to determine if the delay before performing locking actions will be based on minutes or seconds.  This will update the label on the next option to show its' setting."}
-        input "minSecLock", "bool", title: "Use seconds instead?", submitOnChange:true, required: true, defaultValue: false
-        if (detailedInstructions == true) {paragraph "This value is used to determine the delay before locking actions occur. The minutes/seconds are determined by the Use seconds instead toggle."}
-        if (minSecLock == false) {input "durationLock", "number", title: "Lock it how many minutes later?", required: true, defaultValue: 10}
-        if (minSecLock == true) {input "durationLock", "number", title: "Lock it how many seconds later?", required: true, defaultValue: 10}
-        if (detailedInstructions == true) {paragraph "Enable retries if lock fails to change state enables all actions that try to lock the door up to the maximum number of retries.  If all retry attempts fail, a failure notice will appear in the logs.  Turning this toggle off causes any value in the Maximum number of retries to be ignored."}
-        input "retryLock", "bool", title: "Enable retries if lock fails to change state.", required: false, defaultValue: true
-        if (detailedInstructions == true) {paragraph "Maximum number of retries is used to determine the limit of times that a locking action can attempt to perform an action.  This option is to prevent the lock from attempting over and over until the batteries are drained."}
-        input "maxRetriesLock", "number", title: "Maximum number of retries?", required: false, defaultValue: 3
-        if (detailedInstructions == true) {paragraph "Delay between retries in second(s) provides the lock enough time to perform the locking action.  If you set this too low  and it send commands to the lock before it completes its' action, the commands will be ignored.  Three to five seconds is usually enough time for the lock to perform any actions and report back its' status."}
-        input "delayBetweenRetriesLock", "number", title: "Delay between retries in second(s)?", require: false, defaultValue: 5
-    }
-    section(title: "Unlocking Options:", hideable: true, hidden: hideUnlockOptionsSection()) {
-        if (settings.whenToUnlock?.contains("2")) {paragraph "This sensor is used for presence unlock triggers."}
-        if (settings.whenToUnlock?.contains("2")) {input "unlockPresenceSensor", "capability.presenceSensor", title: "Presence: [ ${unlockPresenceStatus} ]", submitOnChange: true, required: false, multiple: false}
-//        if ((settings.whenToUnlock?.contains("2")) && (unlockPresenceSensor)) {input "allUnlockPresenceSensor", "bool", title: "Present status requires all presence sensors to be present?", submitOnChange:true, required: false, defaultValue: false}
-        if (detailedInstructions == true) {paragraph "Bolt/Frame strike protection detects when the lock is locked and the door is open and immediately unlocks it to prevent it striking the frame.  This special case uses a modified delay timer that ignores the Unlock it how many minutes/seconds later and Delay between retries option.  It does obey the Maximum number of retries though."}
-        if (detailedInstructions == true) {paragraph "Presence detection uses the selected presence device(s) and on arrival will unlock the door.  It is recommended to use a combined presence app to prevent false triggers.  I recommend Presence Plus and Life360 with States by BPTWorld, and the iPhone Presence driver (it works on android too).  You might need to mess around with battery optimization options to get presence apps to work reliably on your phone though."}
-        if (detailedInstructions == true) {paragraph "Fire/Medical panic unlock will unlock the door whenever a specific sensor is opened.  I have zones on my alarm that trip open if one of these alarms are triggered and use an Envisalink 4 to bring over the zones into Hubitat. They show up as contact sensors.  If you have wired smoke detectors to your alarm panel, these are typically on zone 1.  You could use any sensor though to trigger."}
-        if (detailedInstructions == true) {paragraph "Switch triggered unlock lets you trigger an unlock with a switch.  You can use the Switch trigger logic to flip the trigger logic to when the switch is on or off. This is different from the Switch to lock and unlock option as it is only one-way."}
-        if (detailedInstructions == true) {paragraph "State sync fix is used when the lock is locked but the door becomes opened.  Since this shouldn't happen it immediately unlocks the lock and tries to refresh the lock if successful it updates the app status.  If the unlock attempt fails, it then will attempt to retry and follows any unlock delays or retry restrictions.  This option allows you to use the lock and unlock functionality and still be able to use the app when you experience sensor problems by disabling this option."}
-        if (detailedInstructions == true) {paragraph "Prevent unlocking under any circumstances is used when you want to disable all unlock functionality in the app. It overrides all unlock settings including Fire/Medical panic unlock."}
-        input "whenToUnlock", "enum", title: "When to unlock?  Default: '(Prevent unlocking under any circumstances)'", options: whenToUnlockOptions, defaultValue: 6, required: true, multiple: true, submitOnChange:true
-        if (!settings.whenToUnlock?.contains("6")) {
-        if (detailedInstructions == true) {paragraph "Use seconds instead changes the timer used in the application to determine if the delay before performing unlocking actions will be based on minutes or seconds. This will update the label on the next option to show its' setting."}
-        input "minSecUnlock", "bool", title: "Use seconds instead?", submitOnChange: true, required: true, defaultValue: true
-        if (detailedInstructions == true) {paragraph "This value is used to determine the delay before unlocking actions occur. The minutes/seconds are determined by the Use seconds instead toggle."}
-        if (minSecUnlock == false) {input "durationUnlock", "number", title: "Unlock it how many minutes later?", submitOnChange: true, required: true, defaultValue: 2}
-        if (minSecUnlock == true) {input "durationUnlock", "number", title: "Unlock it how many seconds later?", submitOnChange: true, required: true, defaultValue: 2}
-        if (detailedInstructions == true) {paragraph "Enable retries if unlock fails to change state enables all actions that try to unlock the door up to the maximum number of retries.  If all retry attempts fail, a failure notice will appear in the logs.  Turning this toggle off causes any value in the Maximum number of retries to be ignored."}
-        input "retryUnlock", "bool", title: "Enable retries if unlock fails to change state.", submitOnChange: true, require: false, defaultValue: true
-        if (detailedInstructions == true) {paragraph "Maximum number of retries is used to determine the limit of times that an unlocking action can attempt to perform an action.  This option is to prevent the lock from attempting over and over until the batteries are drained."}
-        input "maxRetriesUnlock", "number", title: "Maximum number of retries? While door is open it will wait for it to close.", submitOnChange: true, required: false, defaultValue: 3
-        if (detailedInstructions == true) {paragraph "Delay between retries in second(s) provides the lock enough time to perform the unlocking action.  If you set this too low and it send commands to the lock before it completes its' action, the commands will be ignored.  Three to five seconds is usually enough time for the lock to perform any actions and report back its' status."}
-        input "delayBetweenRetriesUnlock", "number", title: "Delay between retries in second(s)?", submitOnChange: true, require: false, defaultValue: 3
+    }    
+    if ((settings.humidityResponseMethod?.contains("3")) || (settings.humidityResponseMethod?.contains("4"))) {
+        section("Comparison Sensor", hideable: true, hidden: hideComparisonSensorSection()) {
+        input "CompareHumiditySensor", "capability.relativeHumidityMeasurement", title: "${compareHumiditySensorStatus}", required: true, submitOnChange:true
+        if (settings.humidityResponseMethod?.contains("4")) {input "CompareHumiditySensorOffset", "number", title: "Comparison Offset Trigger", required: true, submitOnChange:true
+        paragraph "How much deviation from the comparison sensor do you want to trigger the fan? This will set the comparison sensor to be the threshold plus this offset."}
         }
     }
-    section(title: "Logging Options:", hideable: true, hidden: hideLoggingSection()) {
-        if (detailedInstructions == true) {paragraph "Enable Info logging for 30 minutes will enable info logs to show up in the Hubitat logs for 30 minutes after which it will turn them off. Useful for checking if the app is performing actions as expected."}
-        input "isInfo", "bool", title: "Enable Info logging for 30 minutes", submitOnChange: false, required:false, defaultValue: false
-        if (detailedInstructions == true) {paragraph "Enable Debug logging for 30 minutes will enable debug logs to show up in the Hubitat logs for 30 minutes after which it will turn them off. Useful for troubleshooting problems."}
-        input "isDebug", "bool", title: "Enable debug logging for 30 minutes", submitOnChange: false, required:false, defaultValue: false
-        if (detailedInstructions == true) {paragraph "Enable Trace logging for 30 minutes will enable trace logs to show up in the Hubitat logs for 30 minutes after which it will turn them off. Useful for following the logic inside the application but usually not neccesary."}
-        input "isTrace", "bool", title: "Enable Trace logging for 30 minutes", submitOnChange: false, required:false, defaultValue: false
-        if (detailedInstructions == true) {paragraph "IDE logging level is used to permanantly set your logging level for the application.  If it is set higher than any temporary logging options you enable, it will override them.  If it is set lower than temporary logging options, they will take priority until their timer expires.  This is useful if you prefer you logging set to a low level and then can use the logging toggles for specific use cases so you dont have to remember to go back in and change them later.  It's also useful if you are experiencing issues and need higher logging enabled for longer than 30 minutes."}
-        input "ifLevel","enum", title: "IDE logging level",required: true, options: getLogLevels(), defaultValue : "1"
+	section("<b><u>Fan Activation</u></b>"){
+        input "HumidityIncreaseRate", "number", title: "Humidity Increase Rate:", required: true, defaultValue: 2
+        input "HumidityThreshold", "number", title: "Humidity Threshold (%):", required: false, defaultValue: 65
+        if (settings.humidityResponseMethod?.contains("4")) {
+        input "HumidityIncreasedBy", "number", title: "When humidity rises above or equal to this amount plus the baseline sensor humidity turn on the fan: ", required: false, defaultValue: 9}
+        input "FanOnDelay", "number", title: "Delay turning fan on (Minutes):", required: false, defaultValue: 0
+    }
+    section("<b><u>Fan Deactivation</b></u>") {
+        input "HumidityDropTimeout", "number", title: "How long after the humidity starts to drop should the fan turn off (minutes):", required: true, defaultValue:  10
+        input "HumidityDropLimit", "number", title: "What percentage above the starting humidity before triggering the turn off delay:", required: true, defaultValue:  25
+        input "MaxRunTime", "number", title: "Maximum time(minutes) for Fan to run when automatically turned on:", required: false, defaultValue: 120    
+    }
+    section("<b><u>Manual Activation</b></u>") {
+        input "ManualControlMode", "enum", title: "When should the fan turn off when turned on manually?", submitOnChange:true, required: true, options: manualControlModeOptions, defaultValue: 2
+        if (settings.ManualControlMode?.contains("2")) {input "ManualOffMinutes", "number", title: "How many minutes until the fan is auto-turned-off?", submitOnChange:true, required: false, defaultValue: 20}
+    }
+    section(title: "Additional Features:", hideable: true, hidden: hideOptionsSection()) {
+        input "deviceActivationSwitch", "capability.switch", title: "Switches to turn on and off the fan immediately.", submitOnChange:false, required:false, multiple:true
+    }
+    section("Logging Options", hideable: true, hidden: hideLoggingSection()) {
+        input "isInfo", "bool", title: "Enable Info logging for 30 minutes", submitOnChange: false, defaultValue: false
+        input "isDebug", "bool", title: "Enable debug logging for 30 minutes", submitOnChange: false, defaultValue: false
+        input "isTrace", "bool", title: "Enable Trace logging for 30 minutes", submitOnChange: false, defaultValue: false
+        input "ifLevel","enum", title: "IDE logging level",required: true, options: getLogLevels, defaultValue : "1"
+        paragraph "NOTE: IDE logging level overrides the temporary logging selections."
     }
     section(title: "Only Run When:", hideable: true, hidden: hideOptionsSection()) {
         def timeLabel = timeIntervalLabel()
-        if (detailedInstructions == true) {paragraph "Only during a certain time is used to restrict the app to running outside of the assigned times. You can use this to prevent false presence triggers while your sleeping from unlocking the door."}
         href "timeIntervalInput", title: "Only during a certain time", description: timeLabel ?: "Tap to set", state: timeLabel ? "complete" : null
-        if (detailedInstructions == true) {paragraph "Only on certain days of the week restricts the app from running outside of the assigned days. Useful if you work around the yard frequently on the weekends and want to keep your door unlocked and just want the app during the week."}
-        input "days", "enum", title: "Only on certain days of the week", submitOnChange:true, multiple: true, required: false, options: daysOptions
-        if (detailedInstructions == true) {paragraph "Only when mode is allows you to prevent the app from running outside of the specified modes. This is useful if you have a party mode and want the lock from re-locking on you while company is over.  This could also be used like the Only during a certain time mode to prevent faluse triggers at night for instance."}
+        input "days", "enum", title: "Only on certain days of the week", multiple: true, required: false,
+        options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         input "modes", "mode", title: "Only when mode is", multiple: true, required: false
-        if (detailedInstructions == true) {paragraph "Switch to Enable and Disable this app prevents the app from performing any actions other than status updates for the lock and contact sensor state and battery state on the app page."}
         input "disabledSwitch", "capability.switch", title: "Switch to Enable and Disable this app", submitOnChange:true, required:false, multiple:true
     }
-    }
+	}
 }
+
 // Application settings and startup
-@Field static List<Map<String,String>> whenToUnlockOptions = [
-    ["1": "Bolt/frame strike protection"],
-    ["2": "Presence unlock"],
-    ["3": "Fire/medical panic unlock - Not in service yet"],
-    ["4": "Switch triggered unlock - Not in service yet"],
-    ["5": "State sync fix"],
-    ["6": "Prevent unlocking under any circumstances"]
+@Field static List<Map<String,String>> humidityResponseMethodOptions = [
+    ["1": "Rate of change"],
+    ["2": "Humidity over fixed threshold"],
+    ["3": "Rate of change with comparison sensor"],
+    ["4": "Humidity over comparison sensor"]
 ]
 
-@Field static List<Map<String,String>> daysOptions = [
-    ["1": "Monday"],
-    ["2": "Tuesday"],
-    ["3": "Wednesday"],
-    ["4": "Thursday"],
-    ["5": "Friday"],
-    ["6": "Saturday"],
-    ["7": "Sunday"]
-]
-
-@Field static List<Map<String,String>> logLevelOptions = [
-    ["1": "Bolt/frame strike protection"],
-    ["2": "Presence unlock"],
-    ["3": "Fire/medical panic unlock"],
-    ["4": "Switch triggered unlock"],
-    ["5": "State sync fix"],
-    ["6": "Prevent unlocking under any circumstances"]
+@Field static List<Map<String,String>> manualControlModeOptions = [
+    ["1": "By Humidity"],
+    ["2": "After Set Time"],
+    ["3": "Manually"],
+    ["4": "Never"]
 ]
 
 def installed() {
     ifTrace("installed")
-    ifDebug("Auto Lock Door installed.")
     state.installed = true
-    if (lock1Status == null) {lock1Status = " "}
-    if (contactStatus == null) {contactStatus = " "}
-    if (lock1batteryStatus == null) {lock1BatteryStatus = " "}
-    if (contactBatteryStatus == null) {contactBatteryStatus = " "}
     initialize()
 }
 
 def updated() {
-    ifTrace("updated")
-    ifDebug("Settings: ${settings}")
+    ifDebug("Bathroom Humidity Fan Updated")
     if (state?.installed == null)
 	{
 		state.installed = true
@@ -176,18 +142,20 @@ def updated() {
 def initialize() {
     ifTrace("initialize")
     ifDebug("Settings: ${settings}")
-    subscribe(lock1, "lock", lockHandler)
-    subscribe(contact, "contact.open", doorHandler)
-    subscribe(contact, "contact.closed", doorHandler)
-    subscribe(disabledSwitch, "switch.on", disabledHandler)
-    subscribe(disabledSwitch, "switch.off", disabledHandler)
+    defaultHumidityThresholdValue = 65
+    state.OverThreshold = false
+    state.AutomaticallyTurnedOn = false
+    state.TurnOffLaterStarted = false
     subscribe(deviceActivationSwitch, "switch", deviceActivationSwitchHandler)
-    subscribe(lock1, "lock", diagnosticHandler)
-    subscribe(contact, "contact.open", diagnosticHandler)
-    subscribe(contact, "contact.closed", diagnosticHandler)
-    subscribe(lock1, "battery", diagnosticHandler)
-    subscribe(contact, "battery", diagnosticHandler)
-    subscribe(unlockPresenceSensor, "presence", diagnosticHandler)
+    subscribe(disabledSwitch, "switch", disabledHandler)
+    subscribe(FanSwitch, "switch", diagnosticHandler)
+    subscribe(HumiditySensor, "humidity", diagnosticHandler)
+    subscribe(CompareHumiditySensor, "humidity", diagnosticHandler)
+    if ((settings.humidityResponseMethod?.contains("3")) || (settings.humidityResponseMethod?.contains("4"))) {
+        subscribe(CompareHumiditySensor, "humidity", compareHumidityHandler)} else {unsubscribe(compareHumidtySensor)}
+    subscribe(FanSwitch, "switch", FanSwitchHandler)
+    subscribe(HumiditySensor, "humidity", HumidityHandler)
+    subscribe(location, "mode", modeChangeHandler)
     diagnosticHandler()
     updateLabel()
     getAllOk()
@@ -196,98 +164,123 @@ def initialize() {
 // Device Handlers
 def diagnosticHandler(evt) {
     ifTrace("diagnosticHandler")
-    if ((lock1?.currentValue("battery") != null) && (lock1?.currentValue("lock") != null)) {lock1Status = "[ Lock: ${lock1.currentValue("lock")} ] [ Battery: ${lock1.currentValue("battery")} ]"
-    } else if (lock1?.currentValue("lock") != null) {lock1Status = lock1.currentValue("lock")
-    } else if (lock1?.latestValue("lock") != null) {lock1Status = lock1.latestValue("lock")
-    } else {lock1Status = " "}
-    
-    if ((contact?.currentValue("battery") != null) && (contact?.currentValue("contact") != null)) {contactStatus = "[ Contact: ${contact.currentValue("contact")} ] [ Battery: ${contact.currentValue("battery")} ]"
-    } else if (contact?.currentValue("contact") != null) {contactStatus = contact.currentValue("contact")
-    } else if (contact?.latestValue("contact") != null) {contactStatus = contact.latestValue("contact")
-    } else {(contactStatus = " ")}
+    if (FanSwitch?.currentValue("switch") != null) {fanSwitchStatus = "[ Fan: ${FanSwitch.currentValue("switch")} ]"
+    } else if (FanSwitch?.latestValue("switch") != null) {fanSwitchStatus = "Fan: ${FanSwitch.latestValue("switch")}"} else {fanSwitchStatus = " "}
 
-    if ((settings.whenToUnlock?.contains("2")) && (unlockPresenceSensor != null)) {unlockPresenceStatus = "${unlockPresenceSensor.currentValue("presence")}"}
+    if ((HumiditySensor?.currentValue("battery") != null) && (HumiditySensor?.currentValue("humidity") != null)) {humiditySensorStatus = "[ Humidity: ${HumiditySensor.currentValue("humidity")} ]  [ Battery: ${HumiditySensor.currentValue("battery")} ]"
+    } else if (HumiditySensor?.currentValue("humidity") != null) {humiditySensorStatus = "[Humidity: ${HumiditySensor.currentValue("humidity")}]"
+    } else if (HumiditySensor?.latestValue("humidity") != null) {humiditySensorStatus = "[Humidity: ${HumiditySensor.latestValue("humidity")}]"
+    } else {
+        humiditySensorStatus = " "   
+    }
+    if ((CompareHumiditySensor?.currentValue("battery") != null) && (CompareHumiditySensor?.currentValue("humidity") != null)) {compareHumiditySensorStatus = "[ Humidity: ${CompareHumiditySensor.currentValue("humidity")} ] [ Battery: ${CompareHumiditySensor.currentValue("battery")} ]"
+    } else if (CompareHumiditySensor?.currentValue("humidity") != null) {compareHumiditySensorStatus = "[ Humidity: ${CompareHumiditySensor.currentValue("humidity")} ]"
+    } else if (compareHumiditySensor?.latestValue("humidity") != null) {compareHumiditySensorStatus = "[ Humidity: ${CompareHumiditySensor.latestValue("humidity")} ]"
+    } else {
+        compareHumiditySensorStatus = " "   
+    }
     updateLabel()
 }
 
-def lockHandler(evt) {
-    ifTrace("lockHandler")
-    ifTrace("lockHandler: ${evt.value}")
-    updateLabel()
+def modeChangeHandler(evt) {
+	ifTrace("modeChangeHandler")
     if ((getAllOk == false) || (state?.pausedOrDisabled == true)) {
-        ifTrace("lockHandler: Application is paused or disabled.")
-    } else {
-        if ((settings.whenToUnlock?.contains("1")) && (!settings.whenToUnlock?.contains("6")) && (lock1.currentValue("lock") == "locked") && (contact.currentValue("contact") != "closed")) {
-            ifDebug("lockHandler:  Lock was locked while Door was open. Performing a fast unlock to prevent hitting the bolt against the frame.")
-            lock1.unlock()
-            unschedule(unlockDoor)
-            def delayUnlock = 1
-            runIn(delayUnlock, unlockDoor)
-        } else if ((lock1.currentValue("lock") == "locked") && (contact?.currentValue("contact") == "closed" || contact == null)) {
-            ifDebug("Cancelling previous lock task...")
-            unschedule(lockDoor)                  // ...we don't need to lock it later.
-            state.status = "(Locked)"
-        } else if ((lock1.currentValue("lock") == "unlocked") && (contact?.currentValue("contact") == "open")) {
-            ifTrace("The door is open and the lock is unlocked. Nothing to do.")
-            state.status = "(Unlocked)"           
-        } else {                                  
-            countLocked = maxRetriesLock
-            state.status = "(Unlocked)"
-            if (minSecLock) {
-	            def delayLock = durationLock
-                ifDebug("Re-arming lock in in ${durationLock} second(s)")
-                runIn(delayLock, lockDoor)
-            } else {
-                def delayLock = (durationLock * 60)
-                ifDebug("Re-arming lock in in ${durationLock} minute(s)")
-                runIn(delayLock, lockDoor)
-            }
-        }
-    updateLabel()
+        ifDebug("modeChangeHandler: Entered a disabled mode, turning off the Fan")
+	    TurnOffFanSwitch()
+        updateLabel()
     }
 }
 
-def doorHandler(evt) {
-    ifTrace("doorHandler")
-    updateLabel()
+// Humidity Handler Methods
+def HumidityHandler(evt) {
+	ifInfo("HumidityHandler: Running Humidity Check")
     if ((getAllOk == false) || (state?.pausedOrDisabled == true)) {
-        ifTrace("doorHandler: Application is paused or disabled.")
+        ifTrace("HumidityHandler: getAllOk = ${getAllOk()}")
     } else {
-        if ((contact.currentValue("contact") == "closed") && (lock1.currentValue("lock") == "unlocked")) {
-            ifDebug("Door closed, locking door.")
-            unschedule(lockDoor)
-            if (minSecLock) {
-                def delayLock = durationLock
-                runIn(delayLock, lockDoor)
-            } else {
-	            def delayLock = (durationLock * 60)
-                runIn(delayLock, lockDoor)
-            }
-        // Unlock and refresh if known state is out of sync with reality.
-        } else if ((contact.currentValue("contact") == "open") && (lock1.currentValue("lock") == "locked") && (settings.whenToUnlock?.contains("5")) && (!settings.whenToUnlock?.contains("6"))) {
-            ifTrace("doorHandler: Door was opend while lock was locked. Performing a fast unlock in case and device refresh to get current state.")
-            countUnlock = maxRetriesUnlock
-            lock1.unlock()
-            unschedule(checkUnlockedStatus)
-            def delayUnlock = 1
-            runIn(delayUnlock, checkUnlockedStatus)
-            lock1.refresh()
-            contact.refresh()
-        }
-    updateLabel()
+	    humidityHandlerVariablesBefore()
+	    state.OverThreshold = CheckThreshold(evt)
+	    state.lastHumidityDate = state.currentHumidityDate
+        if (state?.currentHumidity) {state.lastHumidity = state.currentHumidity} else {state.lastHumidity = 100}
+	    if (!state?.StartingHumidity) {state.StartingHumidity = 100}
+        if (!state?.HighestHumidity) {state.HighestHumidity = 100}
+	    state.currentHumidity = Double.parseDouble(evt.value.replace("%", ""))
+	    state.currentHumidityDate = evt.date.time
+	    state.HumidityChangeRate = state.currentHumidity - state.lastHumidity
+	    if (state?.currentHumidity > state.HighestHumidity)	{state.HighestHumidity = state.currentHumidity}
+	    state.targetHumidity = state.StartingHumidity+HumidityDropLimit/100*(state.HighestHumidity-state.StartingHumidity)              
+	    humidityHandlerVariablesAfter()
+	    //if the humidity is high (or rising fast) and the fan is off, kick on the fan
+        if (settings.humidityResponseMethod?.contains("1")) {humidityRateOfChangeOn()}
+        if (settings.humidityResponseMethod?.contains("3")) {compareHumidityRateOfChangeOn()}
+	    //turn off the fan when humidity returns to normal and it was kicked on by the humidity sensor
+        if (settings.humidityResponseMethod?.contains("1")) {humidityRateOfChangeOff()}
+        if (settings.humidityResponseMethod?.contains("3")) {compareHumidityRateOfChangeOff()}
     }
+}
+
+def CheckThreshold(evt) {
+	ifTrace("CheckThreshold")
+    if (Double.parseDouble(evt.value.replace("%", "")) >= HumidityThreshold) {  
+		ifInfo("IsHumidityPresent: Humidity is above the Threshold")
+		return true
+    } else {
+		return false
+	}
+}
+
+def compareHumidityHandler(evt) {
+    ifTrace("compareHumidityHandler")
+    compareHumidityValue = (evt.value)
+    if (settings.humidityResponseMethod?.contains("3") && CompareHumiditySensor && compareHumidityValue) {
+    }
+    if (settings.humidityResponseMethod?.contains("4") && CompareHumiditySensor && compareHumidityValue && CompareHumiditySensorOffset) {
+        compareHumidityValueAndOffset = (compareHumidityValue + CompareHumiditySensorOffset)
+        app.updateSetting("HumidityThreshold",[type: "number", value:"compareHumidityValueAndOffset"])
+    }
+}
+
+def FanSwitchHandler(evt) {
+    ifTrace("FanSwitchHandler")
+    if ((getAllOk == false) || (state?.pausedOrDisabled == true)) {
+    ifTrace("FanSwitchHandler: getAllOk = ${getAllOk()} state?.pausedOrDisabled = ${state?.pausedOrDisabled}")
+    } else {
+    updateLabel()
+    if (evt.value == "on") {
+        if (!state?.AutomaticallyTurnedOn && (settings.manualControlModeOptions?.contains("2")) && ManualOffMinutes) {
+            if (ManualOffMinutes == 0) {
+                ifDebug("FanSwitchHandler: Turning the Fan off now")
+                TurnOffFanSwitch()
+                state.status = "(Off)"
+            } else if (FanSwitch.currentValue("switch") == "on") {
+                ifDebug("FanSwitchHandler: Will turn off later")
+                runIn(60 * ManualOffMinutes.toInteger(), TurnOffFanSwitch)
+                state.status = "(On)"
+            } else {
+                (FanSwitch.currentValue("switch") == "off")
+                ifDebug("FanSwitchHandler: Switch already turned off manually")
+                state.status = "(Off)"
+            }
+        }    
+    } else if (evt.value == "off") {
+        ifDebug("FanSwitchHandler: Switch turned off")
+        state.status = "(Off)"
+        state.AutomaticallyTurnedOn = false
+        state.TurnOffLaterStarted = false
+        unschedule()
+        }
+    }
+    updateLabel()
 }
 
 def disabledHandler(evt) {
     ifTrace("disabledHandler")
     if (getAllOk == false) {
-        ifTrace("TurnOffFanSwitchManual: getAllOk = ${getAllOk()} state?.pausedOrDisabled = ${state?.pausedOrDisabled}")
+    ifTrace("TurnOffFanSwitchManual: getAllOk = ${getAllOk()} state?.pausedOrDisabled = ${state?.pausedOrDisabled}")
         } else {
         if(disabledSwitch) {
             disabledSwitch.each { it ->
-                disabledSwitchState = it.currentValue("switch")
+            disabledSwitchState = it.currentValue("switch")
                 if (disabledSwitchState == "on") {
-                    ifTrace("disabledHandler: Disable switch turned on")
                     state.disabled = false
                     if (state?.paused == true) {
                         state.status = "(Paused)"
@@ -296,219 +289,272 @@ def disabledHandler(evt) {
                         state.paused = false
                         state.disabled = false
                         state.pausedOrDisabled = false
-                        if (lock1?.currentValue("lock") == "unlocked" && (contact?.currentValue("contact") == "closed" || contact == null)) {
-                            if (minSecLock) {
-                                def delayLock = durationLock
-                                ifDebug("disabledHandler: App was enabled or unpaused and lock was unlocked. Locking door.")
-                                runIn(delayLock, lockDoor)
-                            } else {
-	                            def delayLock = durationLock * 60
-                                ifDebug("disabledHandler: App was enabled or unpaused and lock was unlocked. Locking door.")
-                                runIn(delayLock, lockDoor)
-                            }
+                        if (FanSwitch.currentValue("switch") == "off") {
+                            state.status = "(Off)"
+                            ifDebug("disabledHandler: App was enabled or unpaused and fan was off.")
                         }
                     }
                 } else if (disabledSwitchState == "off") {
                     state.pauseButtonName = "Disabled by Switch"
                     state.status = "(Disabled)"
-                    ifTrace("disabledHandler: (Disabled)")
                     state.disabled = true
                     updateLabel()
+                    ifDebug("disabledHandler: App was disabled and fan is ${FanSwitch.currentValue("switch")}.")
                 }
             }
         }
         updateLabel()
     }
 }
-
-
-def unlockPresence(evt) {
-    ifTrace("presenceHandler")
-    if ((getAllOk == false) || (state?.pausedOrDisabled == true)) {
-        ifTrace("unlockPresenceHanlder: Application is paused or disabled.")
-        if ((settings.whenToUnlock?.contains("2")) && ("${unlockPresenceSensor.currentValue("presence")}" == "present")) {unlockDoor()}
-    }
-}
-
 
 def deviceActivationSwitchHandler(evt) {
     ifTrace("deviceActivationSwitchHandler")
     if ((getAllOk == false) || (state?.pausedOrDisabled == true)) {
-    ifTrace("deviceActivationSwitchHandler: Application is paused or disabled.")
+    ifTrace("deviceActivationSwitchHandler: getAllOk = ${getAllOk()} state?.pausedOrDisabled = ${state?.pausedOrDisabled}")
     } else {
         updateLabel()
-        if (deviceActivationSwitch) {
+        if(deviceActivationSwitch) {
             deviceActivationSwitch.each { it ->
                 deviceActivationSwitchState = it.currentValue("switch")
             }
             if (deviceActivationSwitchState == "on") {
-                ifDebug("deviceActivationSwitchHandler: Locking the door now")
-                countUnlock = maxRetriesUnlock
-                state.status = "(Locked)"
-                lock1.lock()
-                if (minSecLock) {
-                    def delayLock = durationLock
-                    runIn(delayLock, lockDoor)
-                } else {
-                    def delayLock = durationLock * 60
-                    runIn(delayLock, lockDoor)
-                }
-            } else if ((deviceActivationSwitchState == "off") && (!settings.whenToUnlock?.contains("6"))) {
-                ifDebug("deviceActivationSwitchHandler: Unlocking the door now")
-                countUnlock = maxRetriesUnlock
-                state.status = "(Unlocked)"
-                lock1.unlock()
-                if (minSecUnlock) {
-                    def delayUnlock = durationUnlock
-                    runIn(delayUnlock, unlockDoor)
-                } else {
-                    def delayUnlock = (durationUnlock * 60)
-                    runIn(delayUnlock, unlockDoor)
-                }
+                ifDebug("deviceActivationSwitchHandler: Turning on the fan now")
+                state.status = "(On)"
+                TurnOnFan()
+            } else if (deviceActivationSwitchState == "off") {
+                ifDebug("deviceActivationSwitchHandler: Turning off the fan now")
+                TurnOffFanSwitch()
             }
         }
-    updateLabel()
+        updateLabel()
     }
 }
 
-// Application Functions
-def lockDoor() {
-    ifTrace("lockDoor")
+
+// Application functions
+def humidityRateOfChangeOn() {
+    ifTrace("humidityRateOfChangeOn")
     if ((getAllOk == false) || (state?.pausedOrDisabled == true)) {
-        ifTrace("lockDoor: Application is paused or disabled.")
+    ifTrace("humidityRateOfChangeOff: getAllOk = ${getAllOk()} state?.pausedOrDisabled = ${state?.pausedOrDisabled}")
     } else {
-        updateLabel()
-        ifTrace("lockDoor: contact = ${contact}")
-        if ((contact?.currentValue("contact") == "closed" || contact == null)) {
-            ifDebug("Door is closed, locking door.")
-            lock1.lock()
-            unschedule(checkLockedStatus)
-            countLock = maxRetriesLock
-            if (minSecLock) {
-                def delayLock = durationLock
-                runIn(delayLock, checkLockedStatus)
+        ifTrace("HumidityHandler: modeOk = ${modeOk}")
+       if (((state?.HumidityChangeRate > HumidityIncreaseRate) || state?.OverThreshold) && (FanSwitch?.currentValue("switch") == "off") && modeOk && !state.AutomaticallyTurnedOn) {
+            ifTrace("If the humidity is high (or rising fast) and the fan is off, kick on the fan")
+            state.TurnOffLaterStarted = false
+            if ((FanOnDelay > 0) && (FanOnDelay != null)) {
+                ifDebug("humidityRateOfChangeOn: Turning on fan later")
+                runIn(60 * FanOnDelay.toInteger(), TurnOnFan)
             } else {
-	            def delayLock = durationLock * 60
-                runIn(delayLock, checkLockedStatus)
-                } 
-        } else if ((contact?.currentValue("contact") == "open") && (lock1?.currentValue("lock") == "locked") && (settings.whenToUnlock?.contains("1")) && (!settings.whenToUnlock?.contains("6"))) {
-            ifTrace("lockDoor: Lock was locked while Door was open. Performing a fast unlock to prevent hitting the bolt against the frame.")
-            countUnlock = maxRetriesUnlock
-            lock1.unlock()
-            unschedule(unlockDoor)
-            if (minSecUnlocked) {
-                def delayUnlock = 1
-                ifTrace("lockDoor: Performing a fast unlock to prevent hitting the bolt against the frame.")
-                runIn(delayUnlock, checkUnlockedStatus)
-                lock1.refresh()
+                ifDebug("humidityRateOfChangeOn: Turning on fan due to humidity increase")
+	            state.AutomaticallyTurnedOn = true
+                TurnOnFan()
             }
-        } else {
-            ifTrace("lockDoor: Unhandled exception")
-        }
-    updateLabel()
+            state.StartingHumidity = state.lastHumidity
+            state.HighestHumidity = state.currentHumidity    
+            ifTrace("humidityRateOfChangeOn: new state.StartingHumidity = ${state.StartingHumidity}")
+            ifTrace("humidityRateOfChangeOn: new state.HighestHumidity = ${state.HighestHumidity}")
+            ifTrace("humidityRateOfChangeOn: new state.targetHumidity = ${state.targetHumidity}")
+       }
     }
 }
 
+def humidityRateOfChangeOff() {
+    ifTrace("humidityRateOfChangeOff")
+    if ((getAllOk == false) || (state?.pausedOrDisabled == true)) {
+    ifTrace("humidityRateOfChangeOff: getAllOk = ${getAllOk()} state?.pausedOrDisabled = ${state?.pausedOrDisabled}")
+    } else {
+        if ((state?.AutomaticallyTurnedOn || settings.manualControlModeOptions?.contains("1")) && !state.TurnOffLaterStarted) {
+            ifTrace("humidityRateOfChangeOff: state?.currentHumidity = ${state?.currentHumidity} state?.targetHumidity = ${state?.targetHumidity}")
+            if (state?.currentHumidity <= state?.targetHumidity) {
+               if (HumidityDropTimeout == 0) {
+                    ifDebug("humidityRateOfChangeOff: Fan Off")
+                    TurnOffFanSwitch()
+                    ifDebug("humidityRateOfChangeOff: Turning off the fan. Humidity has returned to normal and it was kicked on by the humidity sensor.")
+                } else {
+                    ifInfo ("humidityRateOfChangeOff: Turn Fan off in ${HumidityDropTimeout} minutes.")
+                    state.TurnOffLaterStarted = true
+                    runIn(60 * HumidityDropTimeout.toInteger(), TurnOffFanSwitchCheckHumidity)
+                    ifDebug("Turning off the fan in ${60 * HumidityDropTimeout.toInteger()} minutes.")
+                    ifTrace("humidityRateOfChangeOff: state.TurnOffLaterStarted = ${state.TurnOffLaterStarted}")
+               }
+            }
+        }
+    }
+}
 
+def compareHumidityRateOfChangeOn() {
+    ifTrace("compareHumidityRateOfChangeOn")
+    if ((getAllOk == false) || (state?.pausedOrDisabled == true)) {
+    ifTrace("compareHumidityRateOfChangeOn: getAllOk = ${getAllOk()} state?.pausedOrDisabled = ${state?.pausedOrDisabled}")
+    } else {
+    ifTrace("compareHumidityRateOfChangeOn: modeOk = ${modeOk}")
+        if (((state?.HumidityChangeRate > HumidityIncreaseRate) || state?.OverThreshold) && (FanSwitch?.currentValue("switch") == "off") && modeOk && !state.AutomaticallyTurnedOn) {
+            ifTrace("If the humidity is high (or rising fast) and the fan is off, kick on the fan")
+            state.TurnOffLaterStarted = false
+            if ((FanOnDelay > 0) && (FanOnDelay != null)) {
+                ifDebug("compareHumidityRateOfChangeOn: Turning on fan later")
+                runIn(60 * FanOnDelay.toInteger(), TurnOnFan)
+            } else {
+                ifDebug("compareHumidityRateOfChangeOn: Turning on fan due to humidity increase")
+	            state.AutomaticallyTurnedOn = true
+                TurnOnFan()
+            }
+            state.StartingHumidity = state.lastHumidity
+            state.HighestHumidity = state.currentHumidity    
+            ifTrace("compareHumidityRateOfChangeOn: new state.StartingHumidity = ${state.StartingHumidity}")
+            ifTrace("compareHumidityRateOfChangeOn: new state.HighestHumidity = ${state.HighestHumidity}")
+            ifTrace("compareHumidityRateOfChangeOn: new state.targetHumidity = ${state.targetHumidity}")
+        }
+    }
+}
 
-def unlockDoor() {
-    ifTrace("unlockDoor")
-    if (((getAllOk == false) || (state?.pausedOrDisabled == true)) || (settings.whenToUnlock?.contains("6"))) {
+def compareHumidityRateOfChangeOff() {
+    ifTrace("compareHumidityRateOfChangeOff")
+    if ((getAllOk == false) || (state?.pausedOrDisabled == true)) {
+    ifTrace("compareHumidityRateOfChangeOff: getAllOk = ${getAllOk()} state?.pausedOrDisabled = ${state?.pausedOrDisabled}")
+    } else {
+        if ((state?.AutomaticallyTurnedOn || settings.manualControlModeOptions?.contains("1")) && !state.TurnOffLaterStarted) {
+            ifTrace("compareHumidityRateOfChangeOff: state?.currentHumidity = ${state?.currentHumidity} state?.targetHumidity = ${state?.targetHumidity}")
+            if (state?.currentHumidity <= state?.targetHumidity) {
+                if (HumidityDropTimeout == 0) {
+                    ifDebug("compareHumidityRateOfChangeOff: Fan Off")
+                    TurnOffFanSwitch()
+                    ifDebug("compareHumidityRateOfChangeOff: Turning off the fan. Humidity has returned to normal and it was kicked on by the humidity sensor.")
+                } else {
+                    ifInfo ("compareHumidityRateOfChangeOff: Turn Fan off in ${HumidityDropTimeout} minutes.")
+                    state.TurnOffLaterStarted = true
+                    runIn(60 * HumidityDropTimeout.toInteger(), TurnOffFanSwitchCheckHumidity)
+                    ifDebug("Turning off the fan in ${60 * HumidityDropTimeout.toInteger()} minutes.")
+                    ifTrace("compareHumidityRateOfChangeOff: state.TurnOffLaterStarted = ${state.TurnOffLaterStarted}")
+                }
+            }
+        }
+    }
+}
+
+def TurnOffFanSwitchMaxTime() {
+    ifTrace("TurnOffFanSwitchMaxTime")
+    if ((getAllOk == false) || (state?.pausedOrDisabled == true)) {
+    ifTrace("TurnOffFanSwitchMaxTime: getAllOk = ${getAllOk()} state?.pausedOrDisabled = ${state?.pausedOrDisabled}")
     } else {
         updateLabel()
-        ifTrace("unlockDoor: Unlocking door.")
-        lock1.unlock()
-        countUnlock = maxRetriesUnlock
-        unschedule(unlockDoor)
-        if (minSecUnlock) {
-            def delayUnlock = durationUnlock
-            runIn(delayUnlock, checkUnlockedStatus)
+        TurnOffFanSwitch()
+    updateLabel()
+    }
+}
+
+def TurnOffFanSwitchCheckHumidity() {
+    ifTrace("TurnOffFanSwitchCheckHumidity")
+    if ((getAllOk == false) || (state?.pausedOrDisabled == true)) {
+    ifTrace("TurnOffFanSwitchCheckHumidity: getAllOk = ${getAllOk()} state?.pausedOrDisabled = ${state?.pausedOrDisabled}")
+    } else {
+        updateLabel()
+        if (FanSwitch?.currentValue("switch") == "on") {
+            if(state?.currentHumidity > state.targetHumidity) {
+                ifDebug("TurnOffFanSwitchCheckHumidity: Didn't turn off fan because humidity rate is ${state.HumidityChangeRate}")
+                state.AutomaticallyTurnedOn = true
+                state.TurnOffLaterStarted = false
+                state.status = "(On)"
+            }
+	    } else {
+	        TurnOffFanSwitch()
+	    }
+    updateLabel()
+	}
+}
+
+def TurnOffFanSwitch() {
+    ifTrace("TurnOffFanSwitch")
+    if ((getAllOk == false) || (state?.pausedOrDisabled == true)) {
+    ifTrace("urnOffFanSwitch: getAllOk = ${getAllOk()} state?.pausedOrDisabled = ${state?.pausedOrDisabled}")
+    } else {
+        updateLabel()
+        ifInfo("TurnOffFanSwitch: Turning the Fan off now")
+        FanSwitch.off()
+        state.status = "(Off)"
+        state.AutomaticallyTurnedOn = false
+        state.TurnOffLaterStarted = false
+        updateLabel()
+    }
+}
+
+def TurnOffFanSwitchManual() {
+    ifTrace("TurnOffFanSwitchManual")
+    if ((getAllOk == false) || (state?.pausedOrDisabled == true)) {
+    ifTrace("TurnOffFanSwitchManual: getAllOk = ${getAllOk()} state?.pausedOrDisabled = ${state?.pausedOrDisabled}")
+    } else {
+        updateLabel()
+        if (state?.AutomaticallyTurnedOn == false) {
+            ifInfo("TurnOffFanSwitchManual: Turning the Fan off now")
+            FanSwitch.off()
+            state.status = "(Off)"
+            updateLabel()
+            state.AutomaticallyTurnedOn = false
+            state.TurnOffLaterStarted = false
         } else {
-	        def delayUnlock = (durationUnlock * 60)
-            runIn(delayUnlock, checkUnlockedStatus)
+            ifInfo("Not turning off switch, either the switch was off or the Auto routine kicked in")
         }
     updateLabel()
     }
 }
 
-def checkLockedStatus() {
-    ifTrace("checkLockedStatus")
-    if (lock1.currentValue("lock") == "locked") {
-        state.status = "(Locked)"
-        ifTrace("checkLockedStatus: The lock was locked successfully")
-        countLock = maxRetriesLock
+def TurnOnFan() {
+    ifTrace("TurnOnFan")
+    if ((getAllOk == false) || (state?.pausedOrDisabled == true)) {
+    ifTrace("TurnOffFanSwitchManual: getAllOk = ${getAllOk()} state?.pausedOrDisabled = ${state?.pausedOrDisabled}")
     } else {
-        state.status = "(Unlocked)"
-        lock1.lock()
-        countLock = (countLock - 1)
-        if (countLock > -1) {
-            runIn(delayBetweenRetriesLock, retryLockingCommand)
-        } else {
-            ifInfo("Maximum retries exceeded. Giving up on locking door.")
-            countLock = maxRetriesLock
+        FanSwitch.on()
+        state.status = "(On)"
+        updateLabel()
+        if (MaxRunTime) {
+            ifDebug("Maximum run time is ${MaxRunTime} minutes")
+            runIn(60 * MaxRunTime.toInteger(), TurnOffFanSwitchMaxTime)
         }
-    }
     updateLabel()
-}
-
-def checkUnlockedStatus() {
-    ifTrace("checkUnlockedStatus")
-    if (lock1.currentValue("lock") == "unlocked") {
-        state.status = "(Unlocked)"
-        ifTrace("checkUnlockedStatus: The lock was unlocked successfully")
-        countUnlock = maxRetriesUnlock
-    } else if (!settings.whenToUnlock?.contains("6")){
-        state.status = "(Locked)"
-        lock1.unlock()
-        countUnlock = (countUnlock - 1)
-        if (countUnlock > -1) {
-            checkLockedStatus
-            runIn(delayBetweenRetriesUnlock, retryUnlockingCommand)
-        } else {
-            ifInfo("Maximum retries exceeded. Giving up on unlocking door.")
-            countUnlock = maxRetriesUnlock
-        }
-    }
-    updateLabel()
-}
-
-def retryLockingCommand() {
-    ifTrace("retryLockingCommand")
-    if (lock1.currentValue("lock") == "locked") {
-        state.status = "(Locked)"
-        ifTrace("retryLockingCommand: The lock was locked successfully")
-        countLock = maxRetriesLock
-    } else if ((retryLock == true) && (lock1.currentValue("lock") != "locked")) {
-        state.status = "(Unlocked)"
-        lock1.lock()
-        if (countUnlock > -1) {runIn(delayBetweenRetriesLock, retryLockingCommand)}
-    } else {
-        ifTrace("retryLockingCommand: retryLock = ${retryLock} - Doing nothing.")
     }
 }
-
-def retryUnlockingCommand() {
-    ifTrace("retryUnlockingCommand")
-    if (lock1.currentValue("lock") == "unlocked") {
-        state.status = "(Unlocked)"
-        ifTrace("retryUnlockingCommand: The lock was unlocked successfully")
-        countUnlock = maxRetriesUnlock
-    } else if ((retryUnlock == true) && (lock1.currentValue("lock") != "unlocked") && (!settings.whenToUnlock?.contains("6"))) {
-        state.status = "(Locked)"
-        lock1.unlock()
-        countUnlock = (countUnlock - 1)
-        if (countUnlock > -1) {runIn(delayBetweenRetriesUnlock, retryUnlockingCommand)}
-    } else {
-        ifTrace("retryUnlockingCommand: retryUnlock = ${retryUnlock} - Doing nothing.")
-    }
+                  
+def changeMode(mode) {
+    ifTrace("changeMode")
+    ifDebug("Changing Mode to: ${mode}")
+	if (location?.mode != mode && location.modes?.find { it.name == mode}) setLocationMode(mode)
 }
-    
+
+def humidityHandlerVariablesBefore() {
+    ifDebug("HumidityHandler: Before")
+    ifDebug("HumidityHandler: state.OverThreshold = ${state.OverThreshold}")
+	ifDebug("HumidityHandler: state.AutomaticallyTurnedOn = ${state.AutomaticallyTurnedOn}")
+	ifDebug("HumidityHandler: state.TurnOffLaterStarted = ${state.TurnOffLaterStarted}")
+	ifDebug("HumidityHandler: state.lastHumidity = ${state.lastHumidity}")
+	ifDebug("HumidityHandler: state.lastHumidityDate = ${state.lastHumidityDate}")
+	ifDebug("HumidityHandler: state.currentHumidity = ${state.currentHumidity}")
+	ifDebug("HumidityHandler: state.currentHumidityDate = ${state.currentHumidityDate}")
+	ifDebug("HumidityHandler: state.StartingHumidity = ${state.StartingHumidity}")
+	ifDebug("HumidityHandler: state.HighestHumidity = ${state.HighestHumidity}")
+	ifDebug("HumidityHandler: state.HumidityChangeRate = ${state.HumidityChangeRate}")
+	ifDebug("HumidityHandler: state.targetHumidity = ${state.targetHumidity}")
+}
+
+def humidityHandlerVariablesAfter() {
+    ifDebug("HumidityHandler: After")
+    ifDebug("HumidityHandler: state.OverThreshold = ${state.OverThreshold}")
+	ifDebug("HumidityHandler: state.AutomaticallyTurnedOn = ${state.AutomaticallyTurnedOn}")
+	ifDebug("HumidityHandler: state.TurnOffLaterStarted = ${state.TurnOffLaterStarted}")
+	ifDebug("HumidityHandler: state.lastHumidity = ${state.lastHumidity}")
+	ifDebug("HumidityHandler: state.lastHumidityDate = ${state.lastHumidityDate}")
+	ifDebug("HumidityHandler: state.currentHumidity = ${state.currentHumidity}")
+	ifDebug("HumidityHandler: state.currentHumidityDate = ${state.currentHumidityDate}")
+	ifDebug("HumidityHandler: state.StartingHumidity = ${state.StartingHumidity}")
+	ifDebug("HumidityHandler: state.HighestHumidity = ${state.HighestHumidity}")
+	ifDebug("HumidityHandler: state.HumidityChangeRate = ${state.HumidityChangeRate.round(2)}")
+	ifDebug("HumidityHandler: state.targetHumidity = ${state.targetHumidity}")
+	ifDebug("HumidityHandler: FanSwitch.current state = ${FanSwitch.currentValue("switch")}")
+}
+
 //Label Updates
 void updateLabel() {
-    ifTrace("updateLabel")
     if (getAllOk == false) {
         ifTrace("updateLabel: getAllOk = ${getAllOk()}")
-        if (getAllOk == false) {ifTrace("getModeOk = ${getModeOk} getDaysOk = ${getDaysOk} getTimeOk = ${getTimeOk}")}
         state.status = "(Disabled by Time, Day, or Mode)"
         appStatus = "<span style=color:brown>(Disabled by Time, Day, or Mode)</span>"
     } else {
@@ -519,17 +565,18 @@ void updateLabel() {
         } else if (state?.paused == true) {
             state.status = "(Paused)"
             appStatus = "<span style=color:red>(Paused)</span>"
-        } else if (lock1?.currentValue("lock") == "locked") {
-            state.status = "(Locked)"
-            appStatus = "<span style=color:green>(Locked)</span>"
-        } else if (lock1?.currentValue("lock") == "unlocked") {
-            state.status = "(Unlocked)"
-            appStatus = "<span style=color:orange>(Unlocked)</span>"
+        } else if (FanSwitch?.currentValue("switch") == "on") {
+            state.status = "(On)"
+            appStatus = "<span style=color:green>(On)</span>"
+        } else if (FanSwitch?.currentValue("switch") == "off") {
+            state.status = "(Off)"
+            appStatus = "<span style=color:blue>(Off)</span>"
         } else {
-            initialize()
+            state.paused = false
+            state.disabled = false
             state.pausedOrDisabled = false
             state.status = " "
-            appStatus = "<span style=color:white> </span>"
+            appStatus = "<span style=color:white>(Unknown)</span>"
         }
     }
     app.updateLabel("${state.thisName} ${appStatus}")
@@ -540,35 +587,34 @@ def appButtonHandler(btn) {
     ifTrace("appButtonHandler")
     if (btn == "Disabled by Switch") {
         state.disabled = false
+        unschedule()
+        unsubscribe()
         subscribe(disabledSwitch, "switch", disabledHandler)
-        subscribe(lock1, "lock", diagnosticHandler)
-        subscribe(contact, "contact", diagnosticHandler)
-        subscribe(lock1, "battery", diagnosticHandler)
-        subscribe(contact, "battery", diagnosticHandler)
+        subscribe(FanSwitch, "switch", diagnosticHandler)
+        subscribe(HumiditySensor, "humidity", diagnosticHandler)
+        subscribe(CompareHumiditySensor, "humidity", diagnosticHandler)
     } else if (btn == "Resume") {
         state.disabled = false
         state.paused = !state.paused
         subscribe(disabledSwitch, "switch", disabledHandler)
-        subscribe(lock1, "lock", diagnosticHandler)
-        subscribe(contact, "contact", diagnosticHandler)
-        subscribe(lock1, "battery", diagnosticHandler)
-        subscribe(contact, "battery", diagnosticHandler)
+        subscribe(FanSwitch, "switch", diagnosticHandler)
+        subscribe(HumiditySensor, "humidity", diagnosticHandler)
+        subscribe(CompareHumiditySensor, "humidity", diagnosticHandler)
     } else if (btn == "Pause") {
         state.paused = !state.paused
         if (state?.paused) {
             unschedule()
             unsubscribe()
             subscribe(disabledSwitch, "switch", disabledHandler)
-            subscribe(lock1, "lock", diagnosticHandler)
-            subscribe(contact, "contact", diagnosticHandler)
-            subscribe(lock1, "battery", diagnosticHandler)
-            subscribe(contact, "battery", diagnosticHandler)
+            subscribe(FanSwitch, "switch", diagnosticHandler)
+            subscribe(HumiditySensor, "humidity", diagnosticHandler)
+            subscribe(CompareHumiditySensor, "humidity", diagnosticHandler)
         } else {
             initialize()
             state.pausedOrDisabled = false
-            if (lock1?.currentValue("lock") == "unlocked") {
-                ifTrace("appButtonHandler: App was enabled or unpaused and lock was unlocked. Locking the door.")
-                lockDoor()
+            if (FanSwitch?.currentValue("switch") == "on") {
+                ifTrace("appButtonHandler: App was enabled or unpaused and fan was on. Turning off the fan.")
+                TurnOffFanSwitch()
             }
         }
     }
@@ -581,20 +627,18 @@ def setPauseButtonName() {
         unsubscribe()
         unschedule()
         subscribe(disabledSwitch, "switch", disabledHandler)
-        subscribe(lock1, "lock", diagnosticHandler)
-        subscribe(contact, "contact", diagnosticHandler)
-        subscribe(lock1, "battery", diagnosticHandler)
-        subscribe(contact, "battery", diagnosticHandler)
+        subscribe(FanSwitch, "switch", diagnosticHandler)
+        subscribe(HumiditySensor, "humidity", diagnosticHandler)
+        subscribe(CompareHumiditySensor, "humidity", diagnosticHandler)
         updateLabel()
     } else if (state?.paused == true) {
         state.pauseButtonName = "Resume"
         unsubscribe()
         unschedule()
         subscribe(disabledSwitch, "switch", disabledHandler)
-        subscribe(lock1, "lock", diagnosticHandler)
-        subscribe(contact, "contact", diagnosticHandler)
-        subscribe(lock1, "battery", diagnosticHandler)
-        subscribe(contact, "battery", diagnosticHandler)
+        subscribe(FanSwitch, "switch", diagnosticHandler)
+        subscribe(HumiditySensor, "humidity", diagnosticHandler)
+        subscribe(CompareHumiditySensor, "humidity", diagnosticHandler)
         updateLabel()
     } else {
         state.pauseButtonName = "Pause"
@@ -603,13 +647,10 @@ def setPauseButtonName() {
     }
 }
 
-// Application Page settings
-private hideLockOptionsSection() {
-	(minSecLock || durationLock || retryLock || maxRetriesLock || delayBetweenRetriesLock) ? false : true
-}
 
-private hideUnlockOptionsSection() {
-	(minSecUnlock || durationUnlock || retryUnlock || maxRetriesUnlock || delayBetweenRetriesUnlock) ? false : true
+// Application Page settings
+private hideComparisonSensorSection() {
+	(CompareHumiditySensor || CompareHumiditySensorOffset) ? false : true
 }
 
 private hideLoggingSection() {
@@ -672,9 +713,12 @@ private timeIntervalLabel() {
 }
 
 // Logging functions
-def getLogLevels() {
-    return [["0":"None"],["1":"Info"],["2":"Debug"],["3":"Trace"]]
-}
+@Field static List<Map<String,String>> getLogLevels = [
+    ["0": "None"],
+    ["1": "Info"],
+    ["2": "Debug"],
+    ["3": "Trace"]
+]
 
 def turnOffLoggingTogglesIn30() {
 if (!isDebug) {
@@ -693,19 +737,19 @@ if (!isDebug) {
 
 def infoOff() {
     app.updateSetting("isInfo", false)
-    log.info "${state.thisName}: Info logging disabled."
+    log.info "${thisName}: Info logging disabled."
     app.updateSetting("isInfo",[value:"false",type:"bool"])
 }
 
 def debugOff() {
     app.updateSetting("isDebug", false)
-    log.info "${state.thisName}: Debug logging disabled."
+    log.info "${thisName}: Debug logging disabled."
     app.updateSetting("isDebug",[value:"false",type:"bool"])
 }
 
 def traceOff() {
     app.updateSetting("isTrace", false)
-    log.trace "${state.thisName}: Trace logging disabled."
+    log.trace "${thisName}: Trace logging disabled."
     app.updateSetting("isTrace",[value:"false",type:"bool"])
 }
 
@@ -731,45 +775,32 @@ def disableTraceIn30() {
 }
 
 def ifWarn(msg) {
-    log.warn "${state.thisName}: ${msg}"
+    log.warn "${thisName}: ${msg}"
 }
 
-def ifInfo(msg) {
+def ifInfo(msg) {       
     def logL = 0
-    if (ifLevel) {logL = ifLevel.toInteger()}
-    if ((isInfo) || (logL > 0)) {log.info "${state.thisName}: ${msg}"} else {return}
+    if (ifLevel) logL = ifLevel.toInteger()
+    if (logL == 1 && isInfo == false) {return}//bail
+    else if (logL > 0) {
+		log.info "${thisName}: ${msg}"
+	}
 }
 
 def ifDebug(msg) {
     def logL = 0
-    if (ifLevel) {logL = ifLevel.toInteger()}
-    if ((isDebug) || (logL > 1)) {log.debug "${state.thisName}: ${msg}"} else {return}
+    if (ifLevel) logL = ifLevel.toInteger()
+    if (logL < 2 && isDebug == false) {return}//bail
+    else if (logL > 1) {
+		log.debug "${thisName}: ${msg}"
+    }
 }
 
-def ifTrace(msg) {
+def ifTrace(msg) {       
     def logL = 0
-    if (ifLevel) {logL = ifLevel.toInteger()}
-    if ((isTrace) || (logL > 2)) {log.trace "${state.thisName}: ${msg}"} else {return}
-}
-
-def getVariableInfo() {
-    ifTrace("state.thisName = ${state.thisName}")
-    ifTrace("getAllOk = ${getAllOk}")
-    ifTrace("getModeOk = ${getModeOk}")
-    ifTrace("getDaysOk = ${getDaysOk}")
-    ifTrace("getTimeOk = ${getTimeOk}")
-    ifTrace("pausedOrDisabled = ${pausedOrDisabled}")
-    ifTrace("logL = ${logL}")
-    ifTrace("state.disabled = ${state.disabled}")
-    ifTrace("state.paused = ${state.paused}")
-    ifTrace("state.disabled = ${state.disabled}")
-    ifTrace("state.disabled = ${state.disabled}")
-    ifTrace("state.disabled = ${state.disabled}")
-    ifTrace("state.disabled = ${state.disabled}")
-    ifTrace("state.disabled = ${state.disabled}")
-    ifTrace("state.disabled = ${state.disabled}")
-    ifTrace("state.disabled = ${state.disabled}")
-    ifTrace("state.disabled = ${state.disabled}")
-    ifTrace("state.disabled = ${state.disabled}")
-    
+    if (ifLevel) logL = ifLevel.toInteger()
+    if (logL < 3 && isTrace == false) {return}//bail
+    else if (logL > 2) {
+		log.trace "${thisName}: ${msg}"
+    }
 }
