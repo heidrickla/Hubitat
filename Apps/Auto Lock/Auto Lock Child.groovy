@@ -208,7 +208,6 @@ def diagnosticHandler(evt) {
     } else if ((settings.ifLevel?.contains("2")) && (unlockPresenceSensor?.latestValue("presence") != null)) {unlockPresenceSensorStatus = "[ Presence: ${unlockPresenceSensor.latestValue("presence")} ]"                                                                                                      
     } else {(presenceSensorStatus = " ")}
     updateLabel()
-    }
 }
 
 def lockHandler(evt) {
