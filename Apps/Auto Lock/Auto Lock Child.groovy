@@ -75,7 +75,7 @@ def mainPage() {
     }
     section(title: "Unlocking Options:", hideable: true, hidden: hideUnlockOptionsSection()) {
         if (detailedInstructions == true) {if (settings.whenToUnlock?.contains("2")) {paragraph "This sensor is used for presence unlock triggers."}}
-        if (settings.whenToUnlock?.contains("2")) {input "unlockPresenceSensor", "capability.presenceSensor", title: "Presence: [ ${unlockPresenceStatus} ]", submitOnChange: true, required: false, multiple: false}
+        if (settings.whenToUnlock?.contains("2")) {input "unlockPresenceSensor", "capability.presenceSensor", title: "Presence:  ${unlockPresenceStatus}", submitOnChange: true, required: false, multiple: false}
 //        if ((settings.whenToUnlock?.contains("2")) && (unlockPresenceSensor)) {input "allUnlockPresenceSensor", "bool", title: "Present status requires all presence sensors to be present?", submitOnChange:true, required: false, defaultValue: false}
         if (detailedInstructions == true) {paragraph "Bolt/Frame strike protection detects when the lock is locked and the door is open and immediately unlocks it to prevent it striking the frame.  This special case uses a modified delay timer that ignores the Unlock it how many minutes/seconds later and Delay between retries option.  It does obey the Maximum number of retries though."}
         if (detailedInstructions == true) {paragraph "Presence detection uses the selected presence device(s) and on arrival will unlock the door.  It is recommended to use a combined presence app to prevent false triggers.  I recommend Presence Plus and Life360 with States by BPTWorld, and the iPhone Presence driver (it works on android too).  You might need to mess around with battery optimization options to get presence apps to work reliably on your phone though."}
@@ -188,7 +188,6 @@ def initialize() {
     subscribe(lock1, "battery", diagnosticHandler)
     subscribe(contact, "battery", diagnosticHandler)
     subscribe(unlockPresenceSensor, "presence", diagnosticHandler)
-    diagnosticHandler()
     getAllOk()
 }
 
@@ -196,17 +195,20 @@ def initialize() {
 def diagnosticHandler(evt) {
     ifTrace("diagnosticHandler")
     if ((lock1?.currentValue("battery") != null) && (lock1?.currentValue("lock") != null)) {lock1Status = "[ Lock: ${lock1.currentValue("lock")} ] [ Battery: ${lock1.currentValue("battery")} ]"
-    } else if (lock1?.currentValue("lock") != null) {lock1Status = lock1.currentValue("lock")
-    } else if (lock1?.latestValue("lock") != null) {lock1Status = lock1.latestValue("lock")
+    } else if (lock1?.currentValue("lock") != null) {lock1Status = "[ Lock: ${lock1.currentValue("lock")} ]"
+    } else if (lock1?.latestValue("lock") != null) {lock1Status = "[ Lock: ${lock1.latestValue("lock")} ]"
     } else {lock1Status = " "}
     
     if ((contact?.currentValue("battery") != null) && (contact?.currentValue("contact") != null)) {contactStatus = "[ Contact: ${contact.currentValue("contact")} ] [ Battery: ${contact.currentValue("battery")} ]"
-    } else if (contact?.currentValue("contact") != null) {contactStatus = contact.currentValue("contact")
-    } else if (contact?.latestValue("contact") != null) {contactStatus = contact.latestValue("contact")
+    } else if (contact?.currentValue("contact") != null) {contactStatus = "[ Contact: ${contact.currentValue("contact")} ]"
+    } else if (contact?.latestValue("contact") != null) {contactStatus = "[ Contact: ${contact.latestValue("contact")} ]"
     } else {(contactStatus = " ")}
 
-    if (("${settings.ifLevel?.contains("2")}") && (unlockPresenceSensor != null)) {unlockPresenceStatus = "${unlockPresenceSensor.currentValue("presence")}"}
+    if ((settings.ifLevel?.contains("2")) && (unlockPresenceSensor?.currentValue("presence") != null)) {unlockPresenceSensorStatus = "[ Presence: ${unlockPresenceSensor.currentValue("presence")} ]"
+    if ((settings.ifLevel?.contains("2")) && (unlockPresenceSensor?.latestValue("presence") != null)) {unlockPresenceSensorStatus = "[ Presence: ${unlockPresenceSensor.latestValue("presence")} ]"                                                                                                      
+    } else {(presenceSensorStatus = " ")}
     updateLabel()
+    }
 }
 
 def lockHandler(evt) {
@@ -506,11 +508,16 @@ def retryUnlockingCommand() {
 void updateLabel() {
     ifTrace("updateLabel")
     if (getAllOk() == false) {
+        if ((state?.paused == true) || (state?.disabled == true)) {
+            state.pausedOrDisabled = true
+        } else {
+            state.pausedOrDisabled = false
+        }
         if ((state?.paused == true) || (state?.disabled == true)) {state.pausedOrDisabled = true} else {state.pausedOrDisabled = false}
-        if (getAllOk() == false) {ifTrace("getModeOk() = ${getModeOk()} getDaysOk = ${getDaysOk()} getTimeOk = ${getTimeOk()}")}
+
         state.status = "(Disabled by Time, Day, or Mode)"
         appStatus = "<span style=color:brown>(Disabled by Time, Day, or Mode)</span>"
-    } else {
+        } else {
         if (state?.disabled == true) {
             state.status = "(Disabled)"
             appStatus = "<span style=color:red>(Disabled)</span>"
