@@ -9,7 +9,7 @@ import groovy.transform.Field
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.15"
+	state.version = "1.1.16"
 }
 
 definition(
@@ -188,7 +188,7 @@ def initialize() {
     subscribe(lock1, "battery", diagnosticHandler)
     subscribe(contact, "battery", diagnosticHandler)
     subscribe(unlockPresenceSensor, "presence", diagnosticHandler)
-//    diagnosticHandler()
+    diagnosticHandler()
     getAllOk()
 }
 
@@ -205,7 +205,7 @@ def diagnosticHandler(evt) {
     } else if (contact?.latestValue("contact") != null) {contactStatus = contact.latestValue("contact")
     } else {(contactStatus = " ")}
 
-    if ((settings.whenToUnlock?.contains("2")) && (unlockPresenceSensor != null)) {unlockPresenceStatus = "${unlockPresenceSensor.currentValue("presence")}"}
+    if (("${settings.ifLevel?.contains("2")}") && (unlockPresenceSensor != null)) {unlockPresenceStatus = "${unlockPresenceSensor.currentValue("presence")}"}
     updateLabel()
 }
 
@@ -213,10 +213,10 @@ def lockHandler(evt) {
     ifTrace("lockHandler")
     ifTrace("lockHandler: ${evt.value}")
     updateLabel()
-    if ((getAllOk == false) || (state?.pausedOrDisabled == true)) {
+    if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {
         ifTrace("lockHandler: Application is paused or disabled.")
     } else {
-        if ((settings.whenToUnlock?.contains("1")) && (!settings.whenToUnlock?.contains("6")) && (lock1.currentValue("lock") == "locked") && (contact.currentValue("contact") != "closed")) {
+        if (("${settings.ifLevel?.contains("1")}") && ("${!settings.ifLevel?.contains("6")}") && (lock1.currentValue("lock") == "locked") && (contact.currentValue("contact") != "closed")) {
             ifDebug("lockHandler:  Lock was locked while Door was open. Performing a fast unlock to prevent hitting the bolt against the frame.")
             lock1.unlock()
             unschedule(unlockDoor)
@@ -249,7 +249,7 @@ def lockHandler(evt) {
 def doorHandler(evt) {
     ifTrace("doorHandler")
     updateLabel()
-    if ((getAllOk == false) || (state?.pausedOrDisabled == true)) {
+    if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {
         ifTrace("doorHandler: Application is paused or disabled.")
     } else {
         if ((contact.currentValue("contact") == "closed") && (lock1.currentValue("lock") == "unlocked")) {
@@ -263,7 +263,7 @@ def doorHandler(evt) {
                 runIn(delayLock, lockDoor)
             }
         // Unlock and refresh if known state is out of sync with reality.
-        } else if ((contact.currentValue("contact") == "open") && (lock1.currentValue("lock") == "locked") && (settings.whenToUnlock?.contains("5")) && (!settings.whenToUnlock?.contains("6"))) {
+        } else if ((contact.currentValue("contact") == "open") && (lock1.currentValue("lock") == "locked") && ("${settings.ifLevel?.contains("5")}") && ("${!settings.ifLevel?.contains("6")}")) {
             ifTrace("doorHandler: Door was opend while lock was locked. Performing a fast unlock in case and device refresh to get current state.")
             countUnlock = maxRetriesUnlock
             lock1.unlock()
@@ -279,7 +279,7 @@ def doorHandler(evt) {
 
 def disabledHandler(evt) {
     ifTrace("disabledHandler")
-    if (getAllOk == false) {
+    if (getAllOk() == false) {
         ifTrace("TurnOffFanSwitchManual: getAllOk = ${getAllOk()} state?.pausedOrDisabled = ${state?.pausedOrDisabled}")
         } else {
         if(disabledSwitch) {
@@ -323,16 +323,16 @@ def disabledHandler(evt) {
 
 def unlockPresence(evt) {
     ifTrace("presenceHandler")
-    if ((getAllOk == false) || (state?.pausedOrDisabled == true)) {
+    if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {
         ifTrace("unlockPresenceHanlder: Application is paused or disabled.")
-        if ((settings.whenToUnlock?.contains("2")) && ("${unlockPresenceSensor.currentValue("presence")}" == "present")) {unlockDoor()}
+        if (("${settings.ifLevel?.contains("2")}") && ("${unlockPresenceSensor.currentValue("presence")}" == "present")) {unlockDoor()}
     }
 }
 
 
 def deviceActivationSwitchHandler(evt) {
     ifTrace("deviceActivationSwitchHandler")
-    if ((getAllOk == false) || (state?.pausedOrDisabled == true)) {
+    if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {
     ifTrace("deviceActivationSwitchHandler: Application is paused or disabled.")
     } else {
         updateLabel()
@@ -352,7 +352,7 @@ def deviceActivationSwitchHandler(evt) {
                     def delayLock = durationLock * 60
                     runIn(delayLock, lockDoor)
                 }
-            } else if ((deviceActivationSwitchState == "off") && (!settings.whenToUnlock?.contains("6"))) {
+            } else if ((deviceActivationSwitchState == "off") && ("${!settings.ifLevel?.contains("6")}")) {
                 ifDebug("deviceActivationSwitchHandler: Unlocking the door now")
                 countUnlock = maxRetriesUnlock
                 state.status = "(Unlocked)"
@@ -373,7 +373,7 @@ def deviceActivationSwitchHandler(evt) {
 // Application Functions
 def lockDoor() {
     ifTrace("lockDoor")
-    if ((getAllOk == false) || (state?.pausedOrDisabled == true)) {
+    if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {
         ifTrace("lockDoor: Application is paused or disabled.")
     } else {
         updateLabel()
@@ -390,7 +390,7 @@ def lockDoor() {
 	            def delayLock = durationLock * 60
                 runIn(delayLock, checkLockedStatus)
                 } 
-        } else if ((contact?.currentValue("contact") == "open") && (lock1?.currentValue("lock") == "locked") && (settings.whenToUnlock?.contains("1")) && (!settings.whenToUnlock?.contains("6"))) {
+        } else if ((contact?.currentValue("contact") == "open") && (lock1?.currentValue("lock") == "locked") && ("${settings.ifLevel?.contains("1")}") && ("${!settings.ifLevel?.contains("6")}")) {
             ifTrace("lockDoor: Lock was locked while Door was open. Performing a fast unlock to prevent hitting the bolt against the frame.")
             countUnlock = maxRetriesUnlock
             lock1.unlock()
@@ -412,7 +412,7 @@ def lockDoor() {
 
 def unlockDoor() {
     ifTrace("unlockDoor")
-    if (((getAllOk == false) || (state?.pausedOrDisabled == true)) || (settings.whenToUnlock?.contains("6"))) {
+    if (((getAllOk() == false) || (state?.pausedOrDisabled == true)) || ("${settings.ifLevel?.contains("6")}")) {
     } else {
         updateLabel()
         ifTrace("unlockDoor: Unlocking door.")
@@ -456,7 +456,7 @@ def checkUnlockedStatus() {
         state.status = "(Unlocked)"
         ifTrace("checkUnlockedStatus: The lock was unlocked successfully")
         countUnlock = maxRetriesUnlock
-    } else if (!settings.whenToUnlock?.contains("6")){
+    } else if ("${!settings.ifLevel?.contains("6")}"){
         state.status = "(Locked)"
         lock1.unlock()
         countUnlock = (countUnlock - 1)
@@ -492,7 +492,7 @@ def retryUnlockingCommand() {
         state.status = "(Unlocked)"
         ifTrace("retryUnlockingCommand: The lock was unlocked successfully")
         countUnlock = maxRetriesUnlock
-    } else if ((retryUnlock == true) && (lock1.currentValue("lock") != "unlocked") && (!settings.whenToUnlock?.contains("6"))) {
+    } else if ((retryUnlock == true) && (lock1.currentValue("lock") != "unlocked") && ("${settings.ifLevel?.contains("6")}")) {
         state.status = "(Locked)"
         lock1.unlock()
         countUnlock = (countUnlock - 1)
@@ -505,13 +505,12 @@ def retryUnlockingCommand() {
 //Label Updates
 void updateLabel() {
     ifTrace("updateLabel")
-    if (getAllOk == false) {
-        ifTrace("updateLabel: getAllOk = ${getAllOk()}")
-        if (getAllOk == false) {ifTrace("getModeOk = ${getModeOk} getDaysOk = ${getDaysOk} getTimeOk = ${getTimeOk}")}
+    if (getAllOk() == false) {
+        if ((state?.paused == true) || (state?.disabled == true)) {state.pausedOrDisabled = true} else {state.pausedOrDisabled = false}
+        if (getAllOk() == false) {ifTrace("getModeOk() = ${getModeOk()} getDaysOk = ${getDaysOk()} getTimeOk = ${getTimeOk()}")}
         state.status = "(Disabled by Time, Day, or Mode)"
         appStatus = "<span style=color:brown>(Disabled by Time, Day, or Mode)</span>"
     } else {
-        if ((state?.pause == true) || (state?.disabled == true)) {state.pausedOrDisabled = true} else {state.pausedOrDisabled = false}
         if (state?.disabled == true) {
             state.status = "(Disabled)"
             appStatus = "<span style=color:red>(Disabled)</span>"
@@ -531,6 +530,7 @@ void updateLabel() {
             appStatus = "<span style=color:white> </span>"
         }
     }
+    if ((state?.paused == true) || (state?.disabled == true)) {state.pausedOrDisabled = true} else {state.pausedOrDisabled = false}
     app.updateLabel("${state.thisName} ${appStatus}")
 }
 
@@ -620,7 +620,7 @@ private hideOptionsSection() {
 }
 
 def getAllOk() {
-    if (modeOk && daysOk && timeOk) {
+    if ((modeOk && daysOk && timeOk) == true) {
         return true
     } else {
         return false
@@ -668,11 +668,6 @@ private hhmm(time, fmt = "h:mm a") {
 
 private timeIntervalLabel() {
 	(starting && ending) ? hhmm(starting) + "-" + hhmm(ending, "h:mm a z") : ""
-}
-
-// Logging functions
-def getLogLevels() {
-    return [["0":"None"],["1":"Info"],["2":"Debug"],["3":"Trace"]]
 }
 
 def turnOffLoggingTogglesIn30() {
@@ -734,44 +729,30 @@ def ifWarn(msg) {
 }
 
 def ifInfo(msg) {
-    if ((!settings.logLevelOptions?.contains("1")) && (isInfo == false)) {return}//bail
-    else if ((settings.logLevelOptions?.contains("1") || settings.logLevelOptions?.contains("2") || settings.logLevelOptions?.contains("3"))) {
-		log.info "${state.thisName}: ${msg}"
-	}
+    if (("${!settings.ifLevel?.contains("1")}" || "${!settings.ifLevel?.contains("1")}" || "${!settings.ifLevel?.contains("1")}") && (isInfo != true)) {return}//bail
+    else if ("${settings.ifLevel?.contains("1")}" || "${settings.ifLevel?.contains("2")}" || "${settings.ifLevel?.contains("3")}") {log.info "${state.thisName}: ${msg}"}
 }
 
 def ifDebug(msg) {
-    if ((!settings.logLevelOptions?.contains("2")) && (isDebug == false)) {return}//bail
-    else if (settings.logLevelOptions?.contains("2") || settings.logLevelOptions?.contains("3")) {
-		log.debug "${state.thisName}: ${msg}"
-    }
+    if (("${!settings.ifLevel?.contains("2")}" || "${!settings.ifLevel?.contains("3")}") && (isDebug != true)) {return}//bail
+    else if ("${settings.ifLevel?.contains("2")}" || "${settings.ifLevel?.contains("3")}") {log.debug "${state.thisName}: ${msg}"}
 }
 
 def ifTrace(msg) {       
-    if ((!settings.logLevelOptions?.contains("3")) && (isTrace == false)) {return}//bail
-    else if (settings.logLevelOptions?.contains("3")) {
-		log.trace "${state.thisName}: ${msg}"
-    }
+    if (("${!settings.ifLevel?.contains("3")}") && (isTrace != true)) {return}//bail
+    else if ("${settings.ifLevel?.contains("3")}") {log.trace "${state.thisName}: ${msg}"}
 }
 
 def getVariableInfo() {
     ifTrace("state.thisName = ${state.thisName}")
-    ifTrace("getAllOk = ${getAllOk}")
-    ifTrace("getModeOk = ${getModeOk}")
-    ifTrace("getDaysOk = ${getDaysOk}")
-    ifTrace("getTimeOk = ${getTimeOk}")
-    ifTrace("pausedOrDisabled = ${pausedOrDisabled}")
-    ifTrace("logL = ${logL}")
+    ifTrace("getAllOk = ${getAllOk()}")
+    ifTrace("getModeOk = ${getModeOk()}")
+    ifTrace("getDaysOk = ${getDaysOk()}")
+    ifTrace("getTimeOk = ${getTimeOk()}")
+    ifTrace("pausedOrDisabled = ${state.pausedOrDisabled}")
     ifTrace("state.disabled = ${state.disabled}")
     ifTrace("state.paused = ${state.paused}")
-    ifTrace("state.disabled = ${state.disabled}")
-    ifTrace("state.disabled = ${state.disabled}")
-    ifTrace("state.disabled = ${state.disabled}")
-    ifTrace("state.disabled = ${state.disabled}")
-    ifTrace("state.disabled = ${state.disabled}")
-    ifTrace("state.disabled = ${state.disabled}")
-    ifTrace("state.disabled = ${state.disabled}")
-    ifTrace("state.disabled = ${state.disabled}")
-    ifTrace("state.disabled = ${state.disabled}")
-    
+    log.info "settings.ifLevel?.contains(1) = ${settings.ifLevel?.contains("1")}"
+    log.info "settings.ifLevel?.contains(2) = ${settings.ifLevel?.contains("2")}"
+    log.info "settings.ifLevel?.contains(3) = ${settings.ifLevel?.contains("3")}"
 }
