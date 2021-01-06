@@ -53,9 +53,9 @@ def mainPage() {
     }
     section("") {
         if (detailedInstructions == true) {paragraph "This is the lock that will all actions will activate against. The app watches for locked or unlocked status sent from the device.  If it cannot determine the current status, the last known status of the lock will be used.  If there is not a last status available and State sync fix is enabled it will attempt to determine its' state, otherwise it will default to a space. Once a device is selected, the current status will appear on the device.  The status can be updated by refreshing the page or clicking the refresh status toggle."}
-        input "lock1", "capability.lock", title: "Lock: [ ${lock1Status} ]", submitOnChange: true, required: true
+        input "lock1", "capability.lock", title: "Lock:  ${lock1Status}", submitOnChange: true, required: true
         if (detailedInstructions == true) {paragraph "This is the contact sensor that will be used to determine if the door is open.  The lock will not lock while the door is open.  If it does become locked and Bolt/Frame strike protection is enabled, it will immediately try to unlock to keep from hitting the bolt against the frame. If you are having issues with your contact sensor or do not use one, it is recommended to disable Bolt/frame strike protection as it will interfere with the operation of the lock."}
-        input "contact", "capability.contactSensor", title: "Door Contact: [ ${contactStatus} ]", submitOnChange: true, required: false
+        input "contact", "capability.contactSensor", title: "Door Contact:  ${contactStatus}", submitOnChange: true, required: false
         if (detailedInstructions == true) {paragraph "This option performs an immediate update to the current status of the Lock, Contact Sensor, Presence Sensor, and Status of the application.  It will automatically reset back to off after activated."}
         input "refresh", "bool", title: "Click here to refresh the device status", submitOnChange:true, required: false
         app.updateSetting("refresh",[value:"false",type:"bool"])
