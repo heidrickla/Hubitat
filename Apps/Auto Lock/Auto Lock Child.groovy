@@ -205,7 +205,7 @@ def diagnosticHandler(evt) {
     } else {(contactStatus = " ")}
 
     if ((settings.ifLevel?.contains("2")) && (unlockPresenceSensor?.currentValue("presence") != null)) {unlockPresenceSensorStatus = "[ Presence: ${unlockPresenceSensor.currentValue("presence")} ]"
-    if ((settings.ifLevel?.contains("2")) && (unlockPresenceSensor?.latestValue("presence") != null)) {unlockPresenceSensorStatus = "[ Presence: ${unlockPresenceSensor.latestValue("presence")} ]"                                                                                                      
+    } else if ((settings.ifLevel?.contains("2")) && (unlockPresenceSensor?.latestValue("presence") != null)) {unlockPresenceSensorStatus = "[ Presence: ${unlockPresenceSensor.latestValue("presence")} ]"                                                                                                      
     } else {(presenceSensorStatus = " ")}
     updateLabel()
     }
