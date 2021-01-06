@@ -9,7 +9,7 @@ import groovy.transform.Field
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.16"
+	state.version = "1.1.17"
 }
 
 definition(
@@ -53,9 +53,9 @@ def mainPage() {
     }
     section("") {
         if (detailedInstructions == true) {paragraph "This is the lock that will all actions will activate against. The app watches for locked or unlocked status sent from the device.  If it cannot determine the current status, the last known status of the lock will be used.  If there is not a last status available and State sync fix is enabled it will attempt to determine its' state, otherwise it will default to a space. Once a device is selected, the current status will appear on the device.  The status can be updated by refreshing the page or clicking the refresh status toggle."}
-        input "lock1", "capability.lock", title: "Lock:  ${lock1Status}", submitOnChange: true, required: true
+        input "lock1", "capability.lock", title: "Lock: ${lock1Status}", submitOnChange: true, required: true
         if (detailedInstructions == true) {paragraph "This is the contact sensor that will be used to determine if the door is open.  The lock will not lock while the door is open.  If it does become locked and Bolt/Frame strike protection is enabled, it will immediately try to unlock to keep from hitting the bolt against the frame. If you are having issues with your contact sensor or do not use one, it is recommended to disable Bolt/frame strike protection as it will interfere with the operation of the lock."}
-        input "contact", "capability.contactSensor", title: "Door Contact:  ${contactStatus}", submitOnChange: true, required: false
+        input "contact", "capability.contactSensor", title: "Door: ${contactStatus}", submitOnChange: true, required: false
         if (detailedInstructions == true) {paragraph "This option performs an immediate update to the current status of the Lock, Contact Sensor, Presence Sensor, and Status of the application.  It will automatically reset back to off after activated."}
         input "refresh", "bool", title: "Click here to refresh the device status", submitOnChange:true, required: false
         app.updateSetting("refresh",[value:"false",type:"bool"])
@@ -75,7 +75,7 @@ def mainPage() {
     }
     section(title: "Unlocking Options:", hideable: true, hidden: hideUnlockOptionsSection()) {
         if (detailedInstructions == true) {if (settings.whenToUnlock?.contains("2")) {paragraph "This sensor is used for presence unlock triggers."}}
-        if (settings.whenToUnlock?.contains("2")) {input "unlockPresenceSensor", "capability.presenceSensor", title: "Presence:  ${unlockPresenceStatus}", submitOnChange: true, required: false, multiple: false}
+        if (settings.whenToUnlock?.contains("2")) {input "unlockPresenceSensor", "capability.presenceSensor", title: "Presence: ${unlockPresenceStatus}", submitOnChange: true, required: false, multiple: false}
 //        if ((settings.whenToUnlock?.contains("2")) && (unlockPresenceSensor)) {input "allUnlockPresenceSensor", "bool", title: "Present status requires all presence sensors to be present?", submitOnChange:true, required: false, defaultValue: false}
         if (detailedInstructions == true) {paragraph "Bolt/Frame strike protection detects when the lock is locked and the door is open and immediately unlocks it to prevent it striking the frame.  This special case uses a modified delay timer that ignores the Unlock it how many minutes/seconds later and Delay between retries option.  It does obey the Maximum number of retries though."}
         if (detailedInstructions == true) {paragraph "Presence detection uses the selected presence device(s) and on arrival will unlock the door.  It is recommended to use a combined presence app to prevent false triggers.  I recommend Presence Plus and Life360 with States by BPTWorld, and the iPhone Presence driver (it works on android too).  You might need to mess around with battery optimization options to get presence apps to work reliably on your phone though."}
@@ -194,19 +194,19 @@ def initialize() {
 // Device Handlers
 def diagnosticHandler(evt) {
     ifTrace("diagnosticHandler")
-    if ((lock1?.currentValue("battery") != null) && (lock1?.currentValue("lock") != null)) {lock1Status = "[ Lock: ${lock1.currentValue("lock")} ] [ Battery: ${lock1.currentValue("battery")} ]"
-    } else if (lock1?.currentValue("lock") != null) {lock1Status = "[ Lock: ${lock1.currentValue("lock")} ]"
-    } else if (lock1?.latestValue("lock") != null) {lock1Status = "[ Lock: ${lock1.latestValue("lock")} ]"
+    if ((lock1?.currentValue("battery") != null) && (lock1?.currentValue("lock") != null)) {lock1Status = "[${lock1.currentValue("lock")}]  Battery: [${lock1.currentValue("battery")}]"
+    } else if (lock1?.currentValue("lock") != null) {lock1Status = "[${lock1.currentValue("lock")}]"
+    } else if (lock1?.latestValue("lock") != null) {lock1Status = "[${lock1.latestValue("lock")}]"
     } else {lock1Status = " "}
     
-    if ((contact?.currentValue("battery") != null) && (contact?.currentValue("contact") != null)) {contactStatus = "[ Contact: ${contact.currentValue("contact")} ] [ Battery: ${contact.currentValue("battery")} ]"
-    } else if (contact?.currentValue("contact") != null) {contactStatus = "[ Contact: ${contact.currentValue("contact")} ]"
-    } else if (contact?.latestValue("contact") != null) {contactStatus = "[ Contact: ${contact.latestValue("contact")} ]"
+    if ((contact?.currentValue("battery") != null) && (contact?.currentValue("contact") != null)) {contactStatus = "[${contact.currentValue("contact")}]  Battery: [${contact.currentValue("battery")}]"
+    } else if (contact?.currentValue("contact") != null) {contactStatus = "[${contact.currentValue("contact")}]"
+    } else if (contact?.latestValue("contact") != null) {contactStatus = "[${contact.latestValue("contact")}]"
     } else {(contactStatus = " ")}
 
-    if ((settings.ifLevel?.contains("2")) && (unlockPresenceSensor?.currentValue("presence") != null)) {unlockPresenceSensorStatus = "[ Presence: ${unlockPresenceSensor.currentValue("presence")} ]"
-    } else if ((settings.ifLevel?.contains("2")) && (unlockPresenceSensor?.latestValue("presence") != null)) {unlockPresenceSensorStatus = "[ Presence: ${unlockPresenceSensor.latestValue("presence")} ]"                                                                                                      
-    } else {(presenceSensorStatus = " ")}
+    if (unlockPresenceSensor?.currentValue("presence") != null) {unlockPresenceStatus = "[${unlockPresenceSensor.currentValue("presence")}]"
+    } else if ((settings.ifLevel?.contains("2")) && (unlockPresenceSensor?.latestValue("presence") != null)) {unlockPresenceStatus = "[${unlockPresenceSensor.latestValue("presence")}]"                                                                                                      
+    } else {(unlockPresenceStatus = " ")}
     updateLabel()
 }
 
