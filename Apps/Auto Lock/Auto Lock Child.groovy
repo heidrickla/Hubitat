@@ -5,10 +5,11 @@
  *   
  *   12/28/2020 - Project Published to GitHub
  */
+import groovy.transform.Field
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.6"
+	state.version = "1.1.12"
 }
 
 definition(
@@ -39,54 +40,116 @@ def mainPage() {
     turnOffLoggingTogglesIn30()
     setPauseButtonName()
     diagnosticHandler()
+
     section("") {
       input name: "Pause", type: "button", title: state.pauseButtonName, submitOnChange:true
+      input "detailedInstructions", "bool", title: "Enable detailed instructions?", submitOnChange:true, required: false, defaultValue: false
     }
     section("") {
-        if ((thisName == null) || (thisName == "null <span style=color:pink>(Unknown)</span>")) {thisName = "Enter a name for this app."}
-        input name: "thisName", type: "text", title: "", required:true, submitOnChange:true
+        if ((state.thisName == null) || (state.thisName == "null <span style=color:white> </span>")) {state.thisName = "Enter a name for this app."}
+        input name: "thisName", type: "text", title: "", required:true, submitOnChange:true, defaultValue: "Enter a name for this app."
+        state.thisName = thisName
         updateLabel()
     }
     section("") {
-        input "lock1", "capability.lock", title: "Lock: [${lock1Status}]", required: true, submitOnChange: true
-        input "contact", "capability.contactSensor", title: "Door Contact: [${contactStatus}]", required: false, submitOnChange: true
-        input "refresh", "bool", title: "Click here to refresh the device status", submitOnChange:true
-//        input "autoRefreshXMinutesLock", "enum", title: "Force a refresh of the state of the lock?", require: false, options: ["Never", "1", "5", "15", "30", "60"], defaultValue: "Never"
+        if (detailedInstructions == true) {paragraph "This is the lock that will all actions will activate against. The app watches for locked or unlocked status sent from the device.  If it cannot determine the current status, the last known status of the lock will be used.  If there is not a last status available and State sync fix is enabled it will attempt to determine its' state, otherwise it will default to a space. Once a device is selected, the current status will appear on the device.  The status can be updated by refreshing the page or clicking the refresh status toggle."}
+        input "lock1", "capability.lock", title: "Lock: [ ${lock1Status} ]", submitOnChange: true, required: true
+        if (detailedInstructions == true) {paragraph "This is the contact sensor that will be used to determine if the door is open.  The lock will not lock while the door is open.  If it does become locked and Bolt/Frame strike protection is enabled, it will immediately try to unlock to keep from hitting the bolt against the frame. If you are having issues with your contact sensor or do not use one, it is recommended to disable Bolt/frame strike protection as it will interfere with the operation of the lock."}
+        input "contact", "capability.contactSensor", title: "Door Contact: [ ${contactStatus} ]", submitOnChange: true, required: false
+        if (detailedInstructions == true) {paragraph "This option performs an immediate update to the current status of the Lock, Contact Sensor, Presence Sensor, and Status of the application.  It will automatically reset back to off after activated."}
+        input "refresh", "bool", title: "Click here to refresh the device status", submitOnChange:true, required: false
         app.updateSetting("refresh",[value:"false",type:"bool"])
     }
     section(title: "Locking Options:", hideable: true, hidden: hideLockOptionsSection()) {
-        input "minSecLock", "bool", title: "Default is minutes. Use seconds instead?", required: true, defaultValue: false
-        input "durationLock", "number", title: "Lock it how many minutes/seconds later?", required: true, defaultValue: 10
-        input "retryLock", "bool", title: "Enable retries if lock fails to change state.", require: false, defaultValue: true
+        if (detailedInstructions == true) {paragraph "Use seconds instead changes the timer used in the application to determine if the delay before performing locking actions will be based on minutes or seconds.  This will update the label on the next option to show its' setting."}
+        input "minSecLock", "bool", title: "Use seconds instead?", submitOnChange:true, required: true, defaultValue: false
+        if (detailedInstructions == true) {paragraph "This value is used to determine the delay before locking actions occur. The minutes/seconds are determined by the Use seconds instead toggle."}
+        if (minSecLock == false) {input "durationLock", "number", title: "Lock it how many minutes later?", required: true, defaultValue: 10}
+        if (minSecLock == true) {input "durationLock", "number", title: "Lock it how many seconds later?", required: true, defaultValue: 10}
+        if (detailedInstructions == true) {paragraph "Enable retries if lock fails to change state enables all actions that try to lock the door up to the maximum number of retries.  If all retry attempts fail, a failure notice will appear in the logs.  Turning this toggle off causes any value in the Maximum number of retries to be ignored."}
+        input "retryLock", "bool", title: "Enable retries if lock fails to change state.", required: false, defaultValue: true
+        if (detailedInstructions == true) {paragraph "Maximum number of retries is used to determine the limit of times that a locking action can attempt to perform an action.  This option is to prevent the lock from attempting over and over until the batteries are drained."}
         input "maxRetriesLock", "number", title: "Maximum number of retries?", required: false, defaultValue: 3
+        if (detailedInstructions == true) {paragraph "Delay between retries in second(s) provides the lock enough time to perform the locking action.  If you set this too low  and it send commands to the lock before it completes its' action, the commands will be ignored.  Three to five seconds is usually enough time for the lock to perform any actions and report back its' status."}
         input "delayBetweenRetriesLock", "number", title: "Delay between retries in second(s)?", require: false, defaultValue: 5
-
     }
     section(title: "Unlocking Options:", hideable: true, hidden: hideUnlockOptionsSection()) {
-        input "minSecUnlock", "bool", title: "Default is minutes. Use seconds instead?", required: true, defaultValue: false
-        input "durationUnlock", "number", title: "Unlock it how many minutes/seconds later?", required: true, defaultValue: 2
-        input "retryUnlock", "bool", title: "Enable retries if unlock fails to change state.", require: false, defaultValue: true
-        input "maxRetriesUnlock", "number", title: "Maximum number of retries? While door is open it will wait for it to close.", required: false, defaultValue: 3
-        input "delayBetweenRetriesUnlock", "number", title: "Delay between retries in second(s)?", require: false, defaultValue: 3
+        if (settings.whenToUnlock?.contains("2")) {paragraph "This sensor is used for presence unlock triggers."}
+        if (settings.whenToUnlock?.contains("2")) {input "unlockPresenceSensor", "capability.presenceSensor", title: "Presence: [ ${unlockPresenceStatus} ]", submitOnChange: true, required: false, multiple: false}
+//        if ((settings.whenToUnlock?.contains("2")) && (unlockPresenceSensor)) {input "allUnlockPresenceSensor", "bool", title: "Present status requires all presence sensors to be present?", submitOnChange:true, required: false, defaultValue: false}
+        if (detailedInstructions == true) {paragraph "Bolt/Frame strike protection detects when the lock is locked and the door is open and immediately unlocks it to prevent it striking the frame.  This special case uses a modified delay timer that ignores the Unlock it how many minutes/seconds later and Delay between retries option.  It does obey the Maximum number of retries though."}
+        if (detailedInstructions == true) {paragraph "Presence detection uses the selected presence device(s) and on arrival will unlock the door.  It is recommended to use a combined presence app to prevent false triggers.  I recommend Presence Plus and Life360 with States by BPTWorld, and the iPhone Presence driver (it works on android too).  You might need to mess around with battery optimization options to get presence apps to work reliably on your phone though."}
+        if (detailedInstructions == true) {paragraph "Fire/Medical panic unlock will unlock the door whenever a specific sensor is opened.  I have zones on my alarm that trip open if one of these alarms are triggered and use an Envisalink 4 to bring over the zones into Hubitat. They show up as contact sensors.  If you have wired smoke detectors to your alarm panel, these are typically on zone 1.  You could use any sensor though to trigger."}
+        if (detailedInstructions == true) {paragraph "Switch triggered unlock lets you trigger an unlock with a switch.  You can use the Switch trigger logic to flip the trigger logic to when the switch is on or off. This is different from the Switch to lock and unlock option as it is only one-way."}
+        if (detailedInstructions == true) {paragraph "State sync fix is used when the lock is locked but the door becomes opened.  Since this shouldn't happen it immediately unlocks the lock and tries to refresh the lock if successful it updates the app status.  If the unlock attempt fails, it then will attempt to retry and follows any unlock delays or retry restrictions.  This option allows you to use the lock and unlock functionality and still be able to use the app when you experience sensor problems by disabling this option."}
+        if (detailedInstructions == true) {paragraph "Prevent unlocking under any circumstances is used when you want to disable all unlock functionality in the app. It overrides all unlock settings including Fire/Medical panic unlock."}
+        input "whenToUnlock", "enum", title: "When to unlock?  Default: '(Prevent unlocking under any circumstances)'", options: whenToUnlockOptions, defaultValue: 6, required: true, multiple: true, submitOnChange:true
+        if (!settings.whenToUnlock?.contains("6")) {
+        if (detailedInstructions == true) {paragraph "Use seconds instead changes the timer used in the application to determine if the delay before performing unlocking actions will be based on minutes or seconds. This will update the label on the next option to show its' setting."}
+        input "minSecUnlock", "bool", title: "Use seconds instead?", submitOnChange: true, required: true, defaultValue: true
+        if (detailedInstructions == true) {paragraph "This value is used to determine the delay before unlocking actions occur. The minutes/seconds are determined by the Use seconds instead toggle."}
+        if (minSecUnlock == false) {input "durationUnlock", "number", title: "Unlock it how many minutes later?", submitOnChange: true, required: true, defaultValue: 2}
+        if (minSecUnlock == true) {input "durationUnlock", "number", title: "Unlock it how many seconds later?", submitOnChange: true, required: true, defaultValue: 2}
+        if (detailedInstructions == true) {paragraph "Enable retries if unlock fails to change state enables all actions that try to unlock the door up to the maximum number of retries.  If all retry attempts fail, a failure notice will appear in the logs.  Turning this toggle off causes any value in the Maximum number of retries to be ignored."}
+        input "retryUnlock", "bool", title: "Enable retries if unlock fails to change state.", submitOnChange: true, require: false, defaultValue: true
+        if (detailedInstructions == true) {paragraph "Maximum number of retries is used to determine the limit of times that an unlocking action can attempt to perform an action.  This option is to prevent the lock from attempting over and over until the batteries are drained."}
+        input "maxRetriesUnlock", "number", title: "Maximum number of retries? While door is open it will wait for it to close.", submitOnChange: true, required: false, defaultValue: 3
+        if (detailedInstructions == true) {paragraph "Delay between retries in second(s) provides the lock enough time to perform the unlocking action.  If you set this too low and it send commands to the lock before it completes its' action, the commands will be ignored.  Three to five seconds is usually enough time for the lock to perform any actions and report back its' status."}
+        input "delayBetweenRetriesUnlock", "number", title: "Delay between retries in second(s)?", submitOnChange: true, require: false, defaultValue: 3
+        }
     }
     section(title: "Logging Options:", hideable: true, hidden: hideLoggingSection()) {
-        input "isInfo", "bool", title: "Enable Info logging for 30 minutes", submitOnChange: false, defaultValue: false
-        input "isDebug", "bool", title: "Enable debug logging for 30 minutes", submitOnChange: false, defaultValue: false
-        input "isTrace", "bool", title: "Enable Trace logging for 30 minutes", submitOnChange: false, defaultValue: false
+        if (detailedInstructions == true) {paragraph "Enable Info logging for 30 minutes will enable info logs to show up in the Hubitat logs for 30 minutes after which it will turn them off. Useful for checking if the app is performing actions as expected."}
+        input "isInfo", "bool", title: "Enable Info logging for 30 minutes", submitOnChange: false, required:false, defaultValue: false
+        if (detailedInstructions == true) {paragraph "Enable Debug logging for 30 minutes will enable debug logs to show up in the Hubitat logs for 30 minutes after which it will turn them off. Useful for troubleshooting problems."}
+        input "isDebug", "bool", title: "Enable debug logging for 30 minutes", submitOnChange: false, required:false, defaultValue: false
+        if (detailedInstructions == true) {paragraph "Enable Trace logging for 30 minutes will enable trace logs to show up in the Hubitat logs for 30 minutes after which it will turn them off. Useful for following the logic inside the application but usually not neccesary."}
+        input "isTrace", "bool", title: "Enable Trace logging for 30 minutes", submitOnChange: false, required:false, defaultValue: false
+        if (detailedInstructions == true) {paragraph "IDE logging level is used to permanantly set your logging level for the application.  If it is set higher than any temporary logging options you enable, it will override them.  If it is set lower than temporary logging options, they will take priority until their timer expires.  This is useful if you prefer you logging set to a low level and then can use the logging toggles for specific use cases so you dont have to remember to go back in and change them later.  It's also useful if you are experiencing issues and need higher logging enabled for longer than 30 minutes."}
         input "ifLevel","enum", title: "IDE logging level",required: true, options: getLogLevels(), defaultValue : "1"
     }
     section(title: "Only Run When:", hideable: true, hidden: hideOptionsSection()) {
         def timeLabel = timeIntervalLabel()
+        if (detailedInstructions == true) {paragraph "Only during a certain time is used to restrict the app to running outside of the assigned times. You can use this to prevent false presence triggers while your sleeping from unlocking the door."}
         href "timeIntervalInput", title: "Only during a certain time", description: timeLabel ?: "Tap to set", state: timeLabel ? "complete" : null
-        input "days", "enum", title: "Only on certain days of the week", multiple: true, required: false,
-            options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        if (detailedInstructions == true) {paragraph "Only on certain days of the week restricts the app from running outside of the assigned days. Useful if you work around the yard frequently on the weekends and want to keep your door unlocked and just want the app during the week."}
+        input "days", "enum", title: "Only on certain days of the week", submitOnChange:true, multiple: true, required: false, options: daysOptions
+        if (detailedInstructions == true) {paragraph "Only when mode is allows you to prevent the app from running outside of the specified modes. This is useful if you have a party mode and want the lock from re-locking on you while company is over.  This could also be used like the Only during a certain time mode to prevent faluse triggers at night for instance."}
         input "modes", "mode", title: "Only when mode is", multiple: true, required: false
+        if (detailedInstructions == true) {paragraph "Switch to Enable and Disable this app prevents the app from performing any actions other than status updates for the lock and contact sensor state and battery state on the app page."}
         input "disabledSwitch", "capability.switch", title: "Switch to Enable and Disable this app", submitOnChange:true, required:false, multiple:true
     }
     }
 }
-
 // Application settings and startup
+@Field static List<Map<String,String>> whenToUnlockOptions = [
+    ["1": "Bolt/frame strike protection"],
+    ["2": "Presence unlock"],
+    ["3": "Fire/medical panic unlock - Not in service yet"],
+    ["4": "Switch triggered unlock - Not in service yet"],
+    ["5": "State sync fix"],
+    ["6": "Prevent unlocking under any circumstances"]
+]
+
+@Field static List<Map<String,String>> daysOptions = [
+    ["1": "Monday"],
+    ["2": "Tuesday"],
+    ["3": "Wednesday"],
+    ["4": "Thursday"],
+    ["5": "Friday"],
+    ["6": "Saturday"],
+    ["7": "Sunday"]
+]
+
+@Field static List<Map<String,String>> logLevelOptions = [
+    ["1": "Bolt/frame strike protection"],
+    ["2": "Presence unlock"],
+    ["3": "Fire/medical panic unlock"],
+    ["4": "Switch triggered unlock"],
+    ["5": "State sync fix"],
+    ["6": "Prevent unlocking under any circumstances"]
+]
+
 def installed() {
     ifTrace("installed")
     ifDebug("Auto Lock Door installed.")
@@ -101,6 +164,10 @@ def installed() {
 def updated() {
     ifTrace("updated")
     ifDebug("Settings: ${settings}")
+    if (state?.installed == null)
+	{
+		state.installed = true
+	}
     unsubscribe()
     unschedule()
     initialize()
@@ -118,8 +185,9 @@ def initialize() {
     subscribe(lock1, "lock", diagnosticHandler)
     subscribe(contact, "contact.open", diagnosticHandler)
     subscribe(contact, "contact.closed", diagnosticHandler)
-    subscribe(lock1, "battery", batteryHandler)
-    subscribe(contact, "battery", batteryHandler)
+    subscribe(lock1, "battery", diagnosticHandler)
+    subscribe(contact, "battery", diagnosticHandler)
+    subscribe(unlockPresenceSensor, "presence", diagnosticHandler)
     diagnosticHandler()
     updateLabel()
     getAllOk()
@@ -128,50 +196,28 @@ def initialize() {
 // Device Handlers
 def diagnosticHandler(evt) {
     ifTrace("diagnosticHandler")
-    if (lock1?.currentValue("lock") != null) {
-        lock1Status = lock1.currentValue("lock")
-    } else if (lock1?.latestValue("lock") != null) {
-        lock1Status = lock1.latestValue("lock")
-    } else {
-        lock1Status = " "
-        ifTrace("diagnosticHandler: lock1Status = ${lock1Status}")
-    }
+    if ((lock1?.currentValue("battery") != null) && (lock1?.currentValue("lock") != null)) {lock1Status = "[ Lock: ${lock1.currentValue("lock")} ] [ Battery: ${lock1.currentValue("battery")} ]"
+    } else if (lock1?.currentValue("lock") != null) {lock1Status = lock1.currentValue("lock")
+    } else if (lock1?.latestValue("lock") != null) {lock1Status = lock1.latestValue("lock")
+    } else {lock1Status = " "}
     
-    if (contact?.currentValue("contact") != null) {
-        contactStatus = contact.currentValue("contact")
-    } else if (contact?.latestValue("contact") != null) {
-        contactStatus = contact.latestValue("contact")
-    } else {
-        contactStatus = " "   
-    }
-    updateLabel()
-}
+    if ((contact?.currentValue("battery") != null) && (contact?.currentValue("contact") != null)) {contactStatus = "[ Contact: ${contact.currentValue("contact")} ] [ Battery: ${contact.currentValue("battery")} ]"
+    } else if (contact?.currentValue("contact") != null) {contactStatus = contact.currentValue("contact")
+    } else if (contact?.latestValue("contact") != null) {contactStatus = contact.latestValue("contact")
+    } else {(contactStatus = " ")}
 
-def batteryHandler(evt) {
-    if (lock1?.currentValue("battery") != null) {
-        lock1BatteryStatus = lock1.currentValue("battery")
-    } else if (lock1?.latestValue("battery") != null) {
-        lock1BatteryStatus = lock1.latestValue("battery")
-    } else {
-        lock1BatteryStatus = " "
-    }
-    if (contact?.currentValue("battery") != null) {
-        contactBatteryStatus = contact.currentValue("battery")
-    } else if (contact?.latestValue("contact") != null) {
-        contactBatteryStatus = contact.latestValue("battery")
-    } else {
-        lock1BatteryStatus = " "
-    }
+    if ((settings.whenToUnlock?.contains("2")) && (unlockPresenceSensor != null)) {unlockPresenceStatus = "${unlockPresenceSensor.currentValue("presence")}"}
+    updateLabel()
 }
 
 def lockHandler(evt) {
     ifTrace("lockHandler")
     ifTrace("lockHandler: ${evt.value}")
     updateLabel()
-    if ((getAllOk() != true) || (state?.pausedOrDisabled == true)) {
+    if ((getAllOk == false) || (state?.pausedOrDisabled == true)) {
         ifTrace("lockHandler: Application is paused or disabled.")
     } else {
-        if ((lock1.currentValue("lock") == "locked") && (contact.currentValue("contact") != "closed")) {
+        if ((settings.whenToUnlock?.contains("1")) && (!settings.whenToUnlock?.contains("6")) && (lock1.currentValue("lock") == "locked") && (contact.currentValue("contact") != "closed")) {
             ifDebug("lockHandler:  Lock was locked while Door was open. Performing a fast unlock to prevent hitting the bolt against the frame.")
             lock1.unlock()
             unschedule(unlockDoor)
@@ -180,7 +226,6 @@ def lockHandler(evt) {
         } else if ((lock1.currentValue("lock") == "locked") && (contact?.currentValue("contact") == "closed" || contact == null)) {
             ifDebug("Cancelling previous lock task...")
             unschedule(lockDoor)                  // ...we don't need to lock it later.
-            unschedule(unlockDoor) 
             state.status = "(Locked)"
         } else if ((lock1.currentValue("lock") == "unlocked") && (contact?.currentValue("contact") == "open")) {
             ifTrace("The door is open and the lock is unlocked. Nothing to do.")
@@ -205,7 +250,7 @@ def lockHandler(evt) {
 def doorHandler(evt) {
     ifTrace("doorHandler")
     updateLabel()
-    if ((getAllOk() != true) || (state?.pausedOrDisabled == true)){
+    if ((getAllOk == false) || (state?.pausedOrDisabled == true)) {
         ifTrace("doorHandler: Application is paused or disabled.")
     } else {
         if ((contact.currentValue("contact") == "closed") && (lock1.currentValue("lock") == "unlocked")) {
@@ -218,7 +263,8 @@ def doorHandler(evt) {
 	            def delayLock = (durationLock * 60)
                 runIn(delayLock, lockDoor)
             }
-        } else if ((contact.currentValue("contact") == "open") && (lock1.currentValue("lock") == "locked")) {
+        // Unlock and refresh if known state is out of sync with reality.
+        } else if ((contact.currentValue("contact") == "open") && (lock1.currentValue("lock") == "locked") && (settings.whenToUnlock?.contains("5")) && (!settings.whenToUnlock?.contains("6"))) {
             ifTrace("doorHandler: Door was opend while lock was locked. Performing a fast unlock in case and device refresh to get current state.")
             countUnlock = maxRetriesUnlock
             lock1.unlock()
@@ -234,13 +280,12 @@ def doorHandler(evt) {
 
 def disabledHandler(evt) {
     ifTrace("disabledHandler")
-    updateLabel()
-    if ((getAllOk() != true) || (state?.pausedOrDisabled == true)){
-        ifTrace("disabledHandler: Application is paused or disabled.")
+    if (getAllOk == false) {
+        ifTrace("TurnOffFanSwitchManual: getAllOk = ${getAllOk()} state?.pausedOrDisabled = ${state?.pausedOrDisabled}")
         } else {
         if(disabledSwitch) {
             disabledSwitch.each { it ->
-            disabledSwitchState = it.currentValue("switch")
+                disabledSwitchState = it.currentValue("switch")
                 if (disabledSwitchState == "on") {
                     ifTrace("disabledHandler: Disable switch turned on")
                     state.disabled = false
@@ -252,12 +297,13 @@ def disabledHandler(evt) {
                         state.disabled = false
                         state.pausedOrDisabled = false
                         if (lock1?.currentValue("lock") == "unlocked" && (contact?.currentValue("contact") == "closed" || contact == null)) {
-                            ifDebug("disabledHandler: App was enabled or unpaused and lock was unlocked. Locking door.")
                             if (minSecLock) {
                                 def delayLock = durationLock
+                                ifDebug("disabledHandler: App was enabled or unpaused and lock was unlocked. Locking door.")
                                 runIn(delayLock, lockDoor)
                             } else {
 	                            def delayLock = durationLock * 60
+                                ifDebug("disabledHandler: App was enabled or unpaused and lock was unlocked. Locking door.")
                                 runIn(delayLock, lockDoor)
                             }
                         }
@@ -275,12 +321,22 @@ def disabledHandler(evt) {
     }
 }
 
+
+def unlockPresence(evt) {
+    ifTrace("presenceHandler")
+    if ((getAllOk == false) || (state?.pausedOrDisabled == true)) {
+        ifTrace("unlockPresenceHanlder: Application is paused or disabled.")
+        if ((settings.whenToUnlock?.contains("2")) && ("${unlockPresenceSensor.currentValue("presence")}" == "present")) {unlockDoor()}
+    }
+}
+
+
 def deviceActivationSwitchHandler(evt) {
     ifTrace("deviceActivationSwitchHandler")
-    updateLabel()
-    if ((getAllOk() != true) || (state.pausedOrDisabled == true)) {
-        ifTrace("deviceActivationSwitchHandler: Application is paused or disabled.")
+    if ((getAllOk == false) || (state?.pausedOrDisabled == true)) {
+    ifTrace("deviceActivationSwitchHandler: Application is paused or disabled.")
     } else {
+        updateLabel()
         if (deviceActivationSwitch) {
             deviceActivationSwitch.each { it ->
                 deviceActivationSwitchState = it.currentValue("switch")
@@ -288,6 +344,7 @@ def deviceActivationSwitchHandler(evt) {
             if (deviceActivationSwitchState == "on") {
                 ifDebug("deviceActivationSwitchHandler: Locking the door now")
                 countUnlock = maxRetriesUnlock
+                state.status = "(Locked)"
                 lock1.lock()
                 if (minSecLock) {
                     def delayLock = durationLock
@@ -296,11 +353,11 @@ def deviceActivationSwitchHandler(evt) {
                     def delayLock = durationLock * 60
                     runIn(delayLock, lockDoor)
                 }
-            } else if (deviceActivationSwitchState == "off") {
+            } else if ((deviceActivationSwitchState == "off") && (!settings.whenToUnlock?.contains("6"))) {
                 ifDebug("deviceActivationSwitchHandler: Unlocking the door now")
                 countUnlock = maxRetriesUnlock
+                state.status = "(Unlocked)"
                 lock1.unlock()
-                countUnlock = maxRetriesUnlock
                 if (minSecUnlock) {
                     def delayUnlock = durationUnlock
                     runIn(delayUnlock, unlockDoor)
@@ -317,8 +374,8 @@ def deviceActivationSwitchHandler(evt) {
 // Application Functions
 def lockDoor() {
     ifTrace("lockDoor")
-    if ((getAllOk() != true) && (state?.pausedOrDisabled == false)) {
-        ifTrace("deviceActivationSwitchHandler: Application is paused or disabled.")
+    if ((getAllOk == false) || (state?.pausedOrDisabled == true)) {
+        ifTrace("lockDoor: Application is paused or disabled.")
     } else {
         updateLabel()
         ifTrace("lockDoor: contact = ${contact}")
@@ -334,7 +391,7 @@ def lockDoor() {
 	            def delayLock = durationLock * 60
                 runIn(delayLock, checkLockedStatus)
                 } 
-        } else if ((contact?.currentValue("contact") == "open") && (lock1?.currentValue("lock") == "locked")) {
+        } else if ((contact?.currentValue("contact") == "open") && (lock1?.currentValue("lock") == "locked") && (settings.whenToUnlock?.contains("1")) && (!settings.whenToUnlock?.contains("6"))) {
             ifTrace("lockDoor: Lock was locked while Door was open. Performing a fast unlock to prevent hitting the bolt against the frame.")
             countUnlock = maxRetriesUnlock
             lock1.unlock()
@@ -356,8 +413,7 @@ def lockDoor() {
 
 def unlockDoor() {
     ifTrace("unlockDoor")
-    if ((getAllOk() != true) && (state?.pausedOrDisabled == false)) {
-        ifTrace("unlockDoor: Application is paused or disabled.")
+    if (((getAllOk == false) || (state?.pausedOrDisabled == true)) || (settings.whenToUnlock?.contains("6"))) {
     } else {
         updateLabel()
         ifTrace("unlockDoor: Unlocking door.")
@@ -401,7 +457,7 @@ def checkUnlockedStatus() {
         state.status = "(Unlocked)"
         ifTrace("checkUnlockedStatus: The lock was unlocked successfully")
         countUnlock = maxRetriesUnlock
-    } else {
+    } else if (!settings.whenToUnlock?.contains("6")){
         state.status = "(Locked)"
         lock1.unlock()
         countUnlock = (countUnlock - 1)
@@ -437,7 +493,7 @@ def retryUnlockingCommand() {
         state.status = "(Unlocked)"
         ifTrace("retryUnlockingCommand: The lock was unlocked successfully")
         countUnlock = maxRetriesUnlock
-    } else if ((retryUnlock == true) && (lock1.currentValue("lock") != "unlocked")) {
+    } else if ((retryUnlock == true) && (lock1.currentValue("lock") != "unlocked") && (!settings.whenToUnlock?.contains("6"))) {
         state.status = "(Locked)"
         lock1.unlock()
         countUnlock = (countUnlock - 1)
@@ -450,16 +506,13 @@ def retryUnlockingCommand() {
 //Label Updates
 void updateLabel() {
     ifTrace("updateLabel")
-    if (getAllOk() != true) {
+    if (getAllOk == false) {
         ifTrace("updateLabel: getAllOk = ${getAllOk()}")
+        if (getAllOk == false) {ifTrace("getModeOk = ${getModeOk} getDaysOk = ${getDaysOk} getTimeOk = ${getTimeOk}")}
         state.status = "(Disabled by Time, Day, or Mode)"
         appStatus = "<span style=color:brown>(Disabled by Time, Day, or Mode)</span>"
     } else {
-        if ((state?.pause == true) || (state?.disabled == true)) {
-            state.pausedOrDisabled = true
-        } else {
-            state.pausedOrDisabled = false
-        }
+        if ((state?.pause == true) || (state?.disabled == true)) {state.pausedOrDisabled = true} else {state.pausedOrDisabled = false}
         if (state?.disabled == true) {
             state.status = "(Disabled)"
             appStatus = "<span style=color:red>(Disabled)</span>"
@@ -473,14 +526,13 @@ void updateLabel() {
             state.status = "(Unlocked)"
             appStatus = "<span style=color:orange>(Unlocked)</span>"
         } else {
-            state.paused = false
-            state.disabled = false
+            initialize()
             state.pausedOrDisabled = false
-            state.status = "(Unknown)"
-            appStatus = "<span style=color:pink>(Unknown)</span>"
+            state.status = " "
+            appStatus = "<span style=color:white> </span>"
         }
     }
-    app.updateLabel("${thisName} ${appStatus}")
+    app.updateLabel("${state.thisName} ${appStatus}")
 }
 
 //Enable, Resume, Pause button
@@ -488,19 +540,34 @@ def appButtonHandler(btn) {
     ifTrace("appButtonHandler")
     if (btn == "Disabled by Switch") {
         state.disabled = false
+        subscribe(disabledSwitch, "switch", disabledHandler)
+        subscribe(lock1, "lock", diagnosticHandler)
+        subscribe(contact, "contact", diagnosticHandler)
+        subscribe(lock1, "battery", diagnosticHandler)
+        subscribe(contact, "battery", diagnosticHandler)
     } else if (btn == "Resume") {
         state.disabled = false
         state.paused = !state.paused
+        subscribe(disabledSwitch, "switch", disabledHandler)
+        subscribe(lock1, "lock", diagnosticHandler)
+        subscribe(contact, "contact", diagnosticHandler)
+        subscribe(lock1, "battery", diagnosticHandler)
+        subscribe(contact, "battery", diagnosticHandler)
     } else if (btn == "Pause") {
         state.paused = !state.paused
         if (state?.paused) {
             unschedule()
             unsubscribe()
+            subscribe(disabledSwitch, "switch", disabledHandler)
+            subscribe(lock1, "lock", diagnosticHandler)
+            subscribe(contact, "contact", diagnosticHandler)
+            subscribe(lock1, "battery", diagnosticHandler)
+            subscribe(contact, "battery", diagnosticHandler)
         } else {
             initialize()
             state.pausedOrDisabled = false
             if (lock1?.currentValue("lock") == "unlocked") {
-                ifTrace("appButtonHandler: App was enabled or unpaused and lock was locked. Locking the door.")
+                ifTrace("appButtonHandler: App was enabled or unpaused and lock was unlocked. Locking the door.")
                 lockDoor()
             }
         }
@@ -514,12 +581,20 @@ def setPauseButtonName() {
         unsubscribe()
         unschedule()
         subscribe(disabledSwitch, "switch", disabledHandler)
+        subscribe(lock1, "lock", diagnosticHandler)
+        subscribe(contact, "contact", diagnosticHandler)
+        subscribe(lock1, "battery", diagnosticHandler)
+        subscribe(contact, "battery", diagnosticHandler)
         updateLabel()
     } else if (state?.paused == true) {
         state.pauseButtonName = "Resume"
         unsubscribe()
         unschedule()
         subscribe(disabledSwitch, "switch", disabledHandler)
+        subscribe(lock1, "lock", diagnosticHandler)
+        subscribe(contact, "contact", diagnosticHandler)
+        subscribe(lock1, "battery", diagnosticHandler)
+        subscribe(contact, "battery", diagnosticHandler)
         updateLabel()
     } else {
         state.pauseButtonName = "Pause"
@@ -543,10 +618,6 @@ private hideLoggingSection() {
 
 private hideOptionsSection() {
 	(starting || ending || days || modes || manualCount) ? true : true
-}
-
-private timeIntervalLabel() {
-	(starting && ending) ? hhmm(starting) + "-" + hhmm(ending, "h:mm a z") : ""
 }
 
 def getAllOk() {
@@ -596,6 +667,10 @@ private hhmm(time, fmt = "h:mm a") {
 	f.format(t)
 }
 
+private timeIntervalLabel() {
+	(starting && ending) ? hhmm(starting) + "-" + hhmm(ending, "h:mm a z") : ""
+}
+
 // Logging functions
 def getLogLevels() {
     return [["0":"None"],["1":"Info"],["2":"Debug"],["3":"Trace"]]
@@ -618,19 +693,19 @@ if (!isDebug) {
 
 def infoOff() {
     app.updateSetting("isInfo", false)
-    log.info "${thisName}: Info logging disabled."
+    log.info "${state.thisName}: Info logging disabled."
     app.updateSetting("isInfo",[value:"false",type:"bool"])
 }
 
 def debugOff() {
     app.updateSetting("isDebug", false)
-    log.info "${thisName}: Debug logging disabled."
+    log.info "${state.thisName}: Debug logging disabled."
     app.updateSetting("isDebug",[value:"false",type:"bool"])
 }
 
 def traceOff() {
     app.updateSetting("isTrace", false)
-    log.trace "${thisName}: Trace logging disabled."
+    log.trace "${state.thisName}: Trace logging disabled."
     app.updateSetting("isTrace",[value:"false",type:"bool"])
 }
 
@@ -656,32 +731,45 @@ def disableTraceIn30() {
 }
 
 def ifWarn(msg) {
-    log.warn "${thisName}: ${msg}"
+    log.warn "${state.thisName}: ${msg}"
 }
 
-def ifInfo(msg) {       
+def ifInfo(msg) {
     def logL = 0
-    if ((ifLevel) || (isInfo == true)) logL = ifLevel.toInteger()
-    if (logL == 1 && isInfo == false) {return}//bail
-    else if (logL > 0) {
-		log.info "${thisName}: ${msg}"
-	}
+    if (ifLevel) {logL = ifLevel.toInteger()}
+    if ((isInfo) || (logL > 0)) {log.info "${state.thisName}: ${msg}"} else {return}
 }
 
 def ifDebug(msg) {
     def logL = 0
-    if ((ifLevel) || (isDebug == true)) logL = ifLevel.toInteger()
-    if (logL < 2 && isDebug == false) {return}//bail
-    else if (logL > 1) {
-		log.debug "${thisName}: ${msg}"
-    }
+    if (ifLevel) {logL = ifLevel.toInteger()}
+    if ((isDebug) || (logL > 1)) {log.debug "${state.thisName}: ${msg}"} else {return}
 }
 
-def ifTrace(msg) {       
+def ifTrace(msg) {
     def logL = 0
-    if ((ifLevel) || (isTrace == true)) logL = ifLevel.toInteger()
-    if (logL < 3 && isTrace == false) {return}//bail
-    else if (logL > 2) {
-		log.trace "${thisName}: ${msg}"
-    }
+    if (ifLevel) {logL = ifLevel.toInteger()}
+    if ((isTrace) || (logL > 2)) {log.trace "${state.thisName}: ${msg}"} else {return}
+}
+
+def getVariableInfo() {
+    ifTrace("state.thisName = ${state.thisName}")
+    ifTrace("getAllOk = ${getAllOk}")
+    ifTrace("getModeOk = ${getModeOk}")
+    ifTrace("getDaysOk = ${getDaysOk}")
+    ifTrace("getTimeOk = ${getTimeOk}")
+    ifTrace("pausedOrDisabled = ${pausedOrDisabled}")
+    ifTrace("logL = ${logL}")
+    ifTrace("state.disabled = ${state.disabled}")
+    ifTrace("state.paused = ${state.paused}")
+    ifTrace("state.disabled = ${state.disabled}")
+    ifTrace("state.disabled = ${state.disabled}")
+    ifTrace("state.disabled = ${state.disabled}")
+    ifTrace("state.disabled = ${state.disabled}")
+    ifTrace("state.disabled = ${state.disabled}")
+    ifTrace("state.disabled = ${state.disabled}")
+    ifTrace("state.disabled = ${state.disabled}")
+    ifTrace("state.disabled = ${state.disabled}")
+    ifTrace("state.disabled = ${state.disabled}")
+    
 }
