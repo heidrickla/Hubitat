@@ -9,7 +9,7 @@ import groovy.transform.Field
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.18"
+	state.version = "1.1.20"
 }
 
 definition(
@@ -74,7 +74,7 @@ def mainPage() {
         input "delayBetweenRetriesLock", "number", title: "Delay between retries in second(s)?", require: false, defaultValue: 5
     }
     section(title: "Unlocking Options:", hideable: true, hidden: hideUnlockOptionsSection()) {
-        if (detailedInstructions == true) {if (settings.whenToUnlock?.contains("2")) {paragraph "This sensor is used for presence unlock triggers."}}
+        if (detailedInstructions == true) {if (settings.whenToUnlock?.contains("2") == true) {paragraph "This sensor is used for presence unlock triggers."}}
         if (settings.whenToUnlock?.contains("2")) {input "unlockPresenceSensor", "capability.presenceSensor", title: "Presence: ${unlockPresenceStatus}", submitOnChange: true, required: false, multiple: false}
 //        if ((settings.whenToUnlock?.contains("2")) && (unlockPresenceSensor)) {input "allUnlockPresenceSensor", "bool", title: "Present status requires all presence sensors to be present?", submitOnChange:true, required: false, defaultValue: false}
         if (detailedInstructions == true) {paragraph "Bolt/Frame strike protection detects when the lock is locked and the door is open and immediately unlocks it to prevent it striking the frame.  This special case uses a modified delay timer that ignores the Unlock it how many minutes/seconds later and Delay between retries option.  It does obey the Maximum number of retries though."}
@@ -84,7 +84,7 @@ def mainPage() {
         if (detailedInstructions == true) {paragraph "State sync fix is used when the lock is locked but the door becomes opened.  Since this shouldn't happen it immediately unlocks the lock and tries to refresh the lock if successful it updates the app status.  If the unlock attempt fails, it then will attempt to retry and follows any unlock delays or retry restrictions.  This option allows you to use the lock and unlock functionality and still be able to use the app when you experience sensor problems by disabling this option."}
         if (detailedInstructions == true) {paragraph "Prevent unlocking under any circumstances is used when you want to disable all unlock functionality in the app. It overrides all unlock settings including Fire/Medical panic unlock."}
         input "whenToUnlock", "enum", title: "When to unlock?  Default: '(Prevent unlocking under any circumstances)'", options: whenToUnlockOptions, defaultValue: 6, required: true, multiple: true, submitOnChange:true
-        if (!settings.whenToUnlock?.contains("6")) {
+        if (!settings.whenToUnlock?.contains("6") == true) {
         if (detailedInstructions == true) {paragraph "Use seconds instead changes the timer used in the application to determine if the delay before performing unlocking actions will be based on minutes or seconds. This will update the label on the next option to show its' setting."}
         input "minSecUnlock", "bool", title: "Use seconds instead?", submitOnChange: true, required: true, defaultValue: true
         if (detailedInstructions == true) {paragraph "This value is used to determine the delay before unlocking actions occur. The minutes/seconds are determined by the Use seconds instead toggle."}
@@ -189,6 +189,7 @@ def initialize() {
     subscribe(lock1, "battery", diagnosticHandler)
     subscribe(contact, "battery", diagnosticHandler)
     subscribe(unlockPresenceSensor, "presence", diagnosticHandler)
+    subscribe(unlockPresenceSensor, "presence", unlockPresence)
     getAllOk()
 }
 
@@ -206,7 +207,7 @@ def diagnosticHandler(evt) {
     } else {(contactStatus = " ")}
 
     if (unlockPresenceSensor?.currentValue("presence") != null) {unlockPresenceStatus = "[${unlockPresenceSensor.currentValue("presence")}]"
-    } else if ((settings.ifLevel?.contains("2")) && (unlockPresenceSensor?.latestValue("presence") != null)) {unlockPresenceStatus = "[${unlockPresenceSensor.latestValue("presence")}]"                                                                                                      
+    } else if ((settings.whenToUnlock?.contains("2")) && (unlockPresenceSensor?.latestValue("presence") != null)) {unlockPresenceStatus = "[${unlockPresenceSensor.latestValue("presence")}]"                                                                                                      
     } else {(unlockPresenceStatus = " ")}
     updateLabel()
 }
@@ -218,7 +219,7 @@ def lockHandler(evt) {
     if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {
         ifTrace("lockHandler: Application is paused or disabled.")
     } else {
-        if (("${settings.ifLevel?.contains("1")}") && ("${!settings.ifLevel?.contains("6")}") && (lock1.currentValue("lock") == "locked") && (contact.currentValue("contact") != "closed")) {
+        if ((settings.whenToUnlock?.contains("1")) && ((!settings.whenToUnlock?.contains("6"))) && (lock1.currentValue("lock") == "locked") && (contact.currentValue("contact") != "closed")) {
             ifDebug("lockHandler:  Lock was locked while Door was open. Performing a fast unlock to prevent hitting the bolt against the frame.")
             lock1.unlock()
             unschedule(unlockDoor)
@@ -265,7 +266,7 @@ def doorHandler(evt) {
                 runIn(delayLock, lockDoor)
             }
         // Unlock and refresh if known state is out of sync with reality.
-        } else if ((contact.currentValue("contact") == "open") && (lock1.currentValue("lock") == "locked") && ("${settings.ifLevel?.contains("5")}") && ("${!settings.ifLevel?.contains("6")}")) {
+        } else if ((contact.currentValue("contact") == "open") && (lock1.currentValue("lock") == "locked") && ((settings.whenToUnlock?.contains("5"))) && ((!settings.whenToUnlock?.contains("6")))) {
             ifTrace("doorHandler: Door was opend while lock was locked. Performing a fast unlock in case and device refresh to get current state.")
             countUnlock = maxRetriesUnlock
             lock1.unlock()
@@ -326,8 +327,8 @@ def disabledHandler(evt) {
 def unlockPresence(evt) {
     ifTrace("presenceHandler")
     if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {
-        ifTrace("unlockPresenceHanlder: Application is paused or disabled.")
-        if (("${settings.ifLevel?.contains("2")}") && ("${unlockPresenceSensor.currentValue("presence")}" == "present")) {unlockDoor()}
+        ifTrace("unlockPresenceHanlder: Application is paused or disabled.")} else {
+    if ((settings.whenToUnlock?.contains("2")) && (unlockPresenceSensor.currentValue("presence") == "present")) {unlockDoor()}
     }
 }
 
@@ -354,7 +355,7 @@ def deviceActivationSwitchHandler(evt) {
                     def delayLock = durationLock * 60
                     runIn(delayLock, lockDoor)
                 }
-            } else if ((deviceActivationSwitchState == "off") && ("${!settings.ifLevel?.contains("6")}")) {
+            } else if ((deviceActivationSwitchState == "off") && ((!settings.whenToUnlock?.contains("6") == true))) {
                 ifDebug("deviceActivationSwitchHandler: Unlocking the door now")
                 countUnlock = maxRetriesUnlock
                 state.status = "(Unlocked)"
@@ -392,7 +393,7 @@ def lockDoor() {
 	            def delayLock = durationLock * 60
                 runIn(delayLock, checkLockedStatus)
                 } 
-        } else if ((contact?.currentValue("contact") == "open") && (lock1?.currentValue("lock") == "locked") && ("${settings.ifLevel?.contains("1")}") && ("${!settings.ifLevel?.contains("6")}")) {
+        } else if ((contact?.currentValue("contact") == "open") && (lock1?.currentValue("lock") == "locked") && (settings.whenToUnlock?.contains("1")) && (!settings.whenToUnlock?.contains("6"))) {
             ifTrace("lockDoor: Lock was locked while Door was open. Performing a fast unlock to prevent hitting the bolt against the frame.")
             countUnlock = maxRetriesUnlock
             lock1.unlock()
@@ -414,7 +415,7 @@ def lockDoor() {
 
 def unlockDoor() {
     ifTrace("unlockDoor")
-    if (((getAllOk() == false) || (state?.pausedOrDisabled == true)) || ("${settings.ifLevel?.contains("6")}")) {
+    if (((getAllOk() == false) || (state?.pausedOrDisabled == true)) || (settings.whenToUnlock?.contains("6") == true)) {
     } else {
         updateLabel()
         ifTrace("unlockDoor: Unlocking door.")
@@ -458,7 +459,7 @@ def checkUnlockedStatus() {
         state.status = "(Unlocked)"
         ifTrace("checkUnlockedStatus: The lock was unlocked successfully")
         countUnlock = maxRetriesUnlock
-    } else if ("${!settings.ifLevel?.contains("6")}"){
+    } else if (!settings.whenToUnlock?.contains("6")) {
         state.status = "(Locked)"
         lock1.unlock()
         countUnlock = (countUnlock - 1)
@@ -494,7 +495,7 @@ def retryUnlockingCommand() {
         state.status = "(Unlocked)"
         ifTrace("retryUnlockingCommand: The lock was unlocked successfully")
         countUnlock = maxRetriesUnlock
-    } else if ((retryUnlock == true) && (lock1.currentValue("lock") != "unlocked") && ("${settings.ifLevel?.contains("6")}")) {
+    } else if ((retryUnlock == true) && (lock1.currentValue("lock") != "unlocked") && (!settings.whenToUnlock?.contains("6"))) {
         state.status = "(Locked)"
         lock1.unlock()
         countUnlock = (countUnlock - 1)
@@ -507,6 +508,7 @@ def retryUnlockingCommand() {
 //Label Updates
 void updateLabel() {
     ifTrace("updateLabel")
+    getVariableInfo()
     if (getAllOk() == false) {
         if ((state?.paused == true) || (state?.disabled == true)) {
             state.pausedOrDisabled = true
@@ -736,18 +738,18 @@ def ifWarn(msg) {
 }
 
 def ifInfo(msg) {
-    if (("${!settings.ifLevel?.contains("1")}" || "${!settings.ifLevel?.contains("1")}" || "${!settings.ifLevel?.contains("1")}") && (isInfo != true)) {return}//bail
-    else if ("${settings.ifLevel?.contains("1")}" || "${settings.ifLevel?.contains("2")}" || "${settings.ifLevel?.contains("3")}") {log.info "${state.thisName}: ${msg}"}
+    if ((((!settings.ifLevel?.contains("1")) || (!settings.ifLevel?.contains("1")) || (!settings.ifLevel?.contains("1"))) && (isInfo != true))) {return}//bail
+    else if ((settings.ifLevel?.contains("1")) || (settings.ifLevel?.contains("2")) || (settings.ifLevel?.contains("3"))) {log.info "${state.thisName}: ${msg}"}
 }
 
 def ifDebug(msg) {
-    if (("${!settings.ifLevel?.contains("2")}" || "${!settings.ifLevel?.contains("3")}") && (isDebug != true)) {return}//bail
-    else if ("${settings.ifLevel?.contains("2")}" || "${settings.ifLevel?.contains("3")}") {log.debug "${state.thisName}: ${msg}"}
+    if (((!settings.ifLevel?.contains("2")) || (!settings.ifLevel?.contains("3"))) && (isDebug != true)) {return}//bail
+    else if ((settings.ifLevel?.contains("2")) || (settings.ifLevel?.contains("3"))) {log.debug "${state.thisName}: ${msg}"}
 }
 
 def ifTrace(msg) {       
-    if (("${!settings.ifLevel?.contains("3")}") && (isTrace != true)) {return}//bail
-    else if ("${settings.ifLevel?.contains("3")}") {log.trace "${state.thisName}: ${msg}"}
+    if ((!settings.ifLevel?.contains("3")) && (isTrace != true)) {return}//bail
+    else if (settings.ifLevel?.contains("3")) {log.trace "${state.thisName}: ${msg}"}
 }
 
 def getVariableInfo() {
@@ -764,4 +766,10 @@ def getVariableInfo() {
     log.info "settings.ifLevel?.contains(1) = ${settings.ifLevel?.contains("1")}"
     log.info "settings.ifLevel?.contains(2) = ${settings.ifLevel?.contains("2")}"
     log.info "settings.ifLevel?.contains(3) = ${settings.ifLevel?.contains("3")}"
+    log.info "settings.whenToUnlock?.contains(1) = ${(settings.whenToUnlock?.contains("1") == true)}"
+    log.info "settings.whenToUnlock?.contains(2) = ${(settings.whenToUnlock?.contains("2") == true)}"
+    log.info "settings.whenToUnlock?.contains(3) = ${(settings.whenToUnlock?.contains("3") == true)}"
+    log.info "settings.whenToUnlock?.contains(4) = ${(settings.whenToUnlock?.contains("4") == true)}"
+    log.info "settings.whenToUnlock?.contains(5) = ${(settings.whenToUnlock?.contains("5") == true)}"
+    log.info "settings.whenToUnlock?.contains(6) = ${(settings.whenToUnlock?.contains("6") == true)}"
 }
