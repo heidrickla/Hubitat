@@ -9,7 +9,7 @@ import groovy.transform.Field
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.20"
+	state.version = "1.1.21"
 }
 
 definition(
@@ -74,17 +74,20 @@ def mainPage() {
         input "delayBetweenRetriesLock", "number", title: "Delay between retries in second(s)?", require: false, defaultValue: 5
     }
     section(title: "Unlocking Options:", hideable: true, hidden: hideUnlockOptionsSection()) {
-        if (detailedInstructions == true) {if (settings.whenToUnlock?.contains("2") == true) {paragraph "This sensor is used for presence unlock triggers."}}
+        if (detailedInstructions == true) {if (settings.whenToUnlock?.contains("2")) {paragraph "This sensor is used for presence unlock triggers."}}
         if (settings.whenToUnlock?.contains("2")) {input "unlockPresenceSensor", "capability.presenceSensor", title: "Presence: ${unlockPresenceStatus}", submitOnChange: true, required: false, multiple: false}
 //        if ((settings.whenToUnlock?.contains("2")) && (unlockPresenceSensor)) {input "allUnlockPresenceSensor", "bool", title: "Present status requires all presence sensors to be present?", submitOnChange:true, required: false, defaultValue: false}
+        if (settings.whenToUnlock?.contains("3")) {input "fireMedical", "capability.contactSensor", title: "Fire/Medical: ${fireMedicalStatus}", submitOnChange: true, required: false, multiple: false}
+        if (settings.whenToUnlock?.contains("4")) {input "deviceActivationSwitch", "capability.switch", title: "Switch Triggered Action: ${deviceActivationSwitchStatus}", submitOnChange: true, required: false, multiple: false}
+        if (settings.whenToUnlock?.contains("4")) {input "deviceActivationToggle", "bool", title: "Invert Switch Triggered Action: ", submitOnChange: true, required: false, multiple: false, defaultValue: false}
         if (detailedInstructions == true) {paragraph "Bolt/Frame strike protection detects when the lock is locked and the door is open and immediately unlocks it to prevent it striking the frame.  This special case uses a modified delay timer that ignores the Unlock it how many minutes/seconds later and Delay between retries option.  It does obey the Maximum number of retries though."}
         if (detailedInstructions == true) {paragraph "Presence detection uses the selected presence device(s) and on arrival will unlock the door.  It is recommended to use a combined presence app to prevent false triggers.  I recommend Presence Plus and Life360 with States by BPTWorld, and the iPhone Presence driver (it works on android too).  You might need to mess around with battery optimization options to get presence apps to work reliably on your phone though."}
         if (detailedInstructions == true) {paragraph "Fire/Medical panic unlock will unlock the door whenever a specific sensor is opened.  I have zones on my alarm that trip open if one of these alarms are triggered and use an Envisalink 4 to bring over the zones into Hubitat. They show up as contact sensors.  If you have wired smoke detectors to your alarm panel, these are typically on zone 1.  You could use any sensor though to trigger."}
-        if (detailedInstructions == true) {paragraph "Switch triggered unlock lets you trigger an unlock with a switch.  You can use the Switch trigger logic to flip the trigger logic to when the switch is on or off. This is different from the Switch to lock and unlock option as it is only one-way."}
+        if (detailedInstructions == true) {paragraph "Switch triggered unlock lets you trigger a lock or an unlock with a switch.  You can use the Invert Switch Triggered Action to flip the trigger logic to when the switch is on or off. This is different from the Switch to enable and disable option as it is used to lock and unlock the door."}
         if (detailedInstructions == true) {paragraph "State sync fix is used when the lock is locked but the door becomes opened.  Since this shouldn't happen it immediately unlocks the lock and tries to refresh the lock if successful it updates the app status.  If the unlock attempt fails, it then will attempt to retry and follows any unlock delays or retry restrictions.  This option allows you to use the lock and unlock functionality and still be able to use the app when you experience sensor problems by disabling this option."}
         if (detailedInstructions == true) {paragraph "Prevent unlocking under any circumstances is used when you want to disable all unlock functionality in the app. It overrides all unlock settings including Fire/Medical panic unlock."}
         input "whenToUnlock", "enum", title: "When to unlock?  Default: '(Prevent unlocking under any circumstances)'", options: whenToUnlockOptions, defaultValue: 6, required: true, multiple: true, submitOnChange:true
-        if (!settings.whenToUnlock?.contains("6") == true) {
+        if (!settings.whenToUnlock?.contains("6")) {
         if (detailedInstructions == true) {paragraph "Use seconds instead changes the timer used in the application to determine if the delay before performing unlocking actions will be based on minutes or seconds. This will update the label on the next option to show its' setting."}
         input "minSecUnlock", "bool", title: "Use seconds instead?", submitOnChange: true, required: true, defaultValue: true
         if (detailedInstructions == true) {paragraph "This value is used to determine the delay before unlocking actions occur. The minutes/seconds are determined by the Use seconds instead toggle."}
@@ -125,8 +128,8 @@ def mainPage() {
 @Field static List<Map<String,String>> whenToUnlockOptions = [
     ["1": "Bolt/frame strike protection"],
     ["2": "Presence unlock"],
-    ["3": "Fire/medical panic unlock - Not in service yet"],
-    ["4": "Switch triggered unlock - Not in service yet"],
+    ["3": "Fire/medical panic unlock"],
+    ["4": "Switch triggered unlock"],
     ["5": "State sync fix"],
     ["6": "Prevent unlocking under any circumstances"]
 ]
@@ -159,6 +162,9 @@ def installed() {
     if (contactStatus == null) {contactStatus = " "}
     if (lock1batteryStatus == null) {lock1BatteryStatus = " "}
     if (contactBatteryStatus == null) {contactBatteryStatus = " "}
+    if (fireMedicalStatus == null) {fireMedicalStatus = " "}
+    if (fireMedicalBatteryStatus == null) {fireMedicalBatteryStatus = " "}
+    if (deviceActivationSwitchStatus == null) {deviceActivationSwitchStatus = " "}
     initialize()
 }
 
@@ -182,11 +188,17 @@ def initialize() {
     subscribe(contact, "contact.closed", doorHandler)
     subscribe(disabledSwitch, "switch.on", disabledHandler)
     subscribe(disabledSwitch, "switch.off", disabledHandler)
+    subscribe(fireMedical, "contact.open", fireMedicalHandler)
+    subscribe(fireMedical, "contact.closed", fireMedicalHandler)
     subscribe(deviceActivationSwitch, "switch", deviceActivationSwitchHandler)
+    subscribe(deviceActivationToggle, "switch", deviceActivationToggleHandler)
+    subscribe(fireMedical, "contact.open", diagnosticHandler)
+    subscribe(fireMedical, "contact.closed", diagnosticHandler)
+    subscribe(fireMedical, "battery", diagnosticHandler)
     subscribe(lock1, "lock", diagnosticHandler)
+    subscribe(lock1, "battery", diagnosticHandler)
     subscribe(contact, "contact.open", diagnosticHandler)
     subscribe(contact, "contact.closed", diagnosticHandler)
-    subscribe(lock1, "battery", diagnosticHandler)
     subscribe(contact, "battery", diagnosticHandler)
     subscribe(unlockPresenceSensor, "presence", diagnosticHandler)
     subscribe(unlockPresenceSensor, "presence", unlockPresence)
@@ -209,6 +221,15 @@ def diagnosticHandler(evt) {
     if (unlockPresenceSensor?.currentValue("presence") != null) {unlockPresenceStatus = "[${unlockPresenceSensor.currentValue("presence")}]"
     } else if ((settings.whenToUnlock?.contains("2")) && (unlockPresenceSensor?.latestValue("presence") != null)) {unlockPresenceStatus = "[${unlockPresenceSensor.latestValue("presence")}]"                                                                                                      
     } else {(unlockPresenceStatus = " ")}
+    
+    if ((fireMedical?.currentValue("battery") != null) && (fireMedical?.currentValue("contact") != null)) {fireMedicalStatus = "[${fireMedical.currentValue("contact")}]  Battery: [${fireMedical.currentValue("battery")}]"
+    } else if (fireMedical?.currentValue("contact") != null) {fireMedicalStatus = "[${fireMedical.currentValue("contact")}]"
+    } else if (fireMedical?.latestValue("contact") != null) {fireMedicalStatus = "[${fireMedical.latestValue("contact")}]"
+    } else {(fireMedicalStatus = " ")}
+    
+    if (deviceActivationSwitch?.currentValue("switch") != null) {deviceActivationSwitchStatus = "[${deviceActivationSwitch.currentValue("switch")}]"
+    } else if ((settings.whenToUnlock?.contains("4")) && deviceActivationSwitch?.latestValue("switch") != null) {deviceActivationSwitchStatus = "[${deviceActivationSwitch.latestValue("switch")}]"
+    } else {(deviceActivationSwitchStatus = " ")}
     updateLabel()
 }
 
@@ -280,6 +301,27 @@ def doorHandler(evt) {
     }
 }
 
+def fireMedicalHandler(evt) {
+    ifTrace("fireMedicalHandler")
+    ifTrace("fireMedicalHandler: ${evt.value}")
+    updateLabel()
+    if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {
+        ifTrace("fireMedicalHandler: Application is paused or disabled.")
+    } else {
+        if ((settings.whenToUnlock?.contains("3")) && (!settings.whenToUnlock?.contains("6")) && (fireMedical.currentValue("switch") == "on")) {
+            ifDebug("fireMedicalHandler:  Fast unlocking because of an emergency.")
+            unlockDoor()
+            unschedule(unlockDoor)
+            def delayUnlock = 1
+            runIn(delayUnlock, unlockDoor)
+        } else if (lock1.currentValue("lock") == "unlocked") {
+            ifTrace("The door is open and the lock is unlocked. Nothing to do.")
+            state.status = "(Unlocked)"
+        }
+    updateLabel()
+    }
+}
+
 def disabledHandler(evt) {
     ifTrace("disabledHandler")
     if (getAllOk() == false) {
@@ -344,28 +386,55 @@ def deviceActivationSwitchHandler(evt) {
                 deviceActivationSwitchState = it.currentValue("switch")
             }
             if (deviceActivationSwitchState == "on") {
-                ifDebug("deviceActivationSwitchHandler: Locking the door now")
-                countUnlock = maxRetriesUnlock
-                state.status = "(Locked)"
-                lock1.lock()
-                if (minSecLock) {
-                    def delayLock = durationLock
-                    runIn(delayLock, lockDoor)
+                if ((deviceActivationToggle == true) && (!settings.whenToUnlock?.contains("6") == true)){
+                    ifDebug("deviceActivationSwitchHandler: Unlocking the door now")
+                    countUnlock = maxRetriesUnlock
+                    state.status = "(Unlocked)"
+                    lock1.unlock()
+                    if (minSecUnlock) {
+                        def delayUnlock = durationUnlock
+                        runIn(delayUnlock, unlockDoor)
+                    } else {
+                        def delayUnlock = (durationUnlock * 60)
+                        runIn(delayUnlock, unlockDoor)
+                    }
                 } else {
-                    def delayLock = durationLock * 60
-                    runIn(delayLock, lockDoor)
+                    ifDebug("deviceActivationSwitchHandler: Locking the door now")
+                    countUnlock = maxRetriesUnlock
+                    state.status = "(Locked)"
+                    lock1.lock()
+                    if (minSecLock) {
+                        def delayLock = durationLock
+                        runIn(delayLock, lockDoor)
+                    } else {
+                        def delayLock = durationLock * 60
+                        runIn(delayLock, lockDoor)
+                    }
                 }
             } else if ((deviceActivationSwitchState == "off") && ((!settings.whenToUnlock?.contains("6") == true))) {
-                ifDebug("deviceActivationSwitchHandler: Unlocking the door now")
-                countUnlock = maxRetriesUnlock
-                state.status = "(Unlocked)"
-                lock1.unlock()
-                if (minSecUnlock) {
-                    def delayUnlock = durationUnlock
-                    runIn(delayUnlock, unlockDoor)
+                if (deviceActivationToggle == true){
+                    countUnlock = maxRetriesUnlock
+                    state.status = "(Locked)"
+                    lock1.lock()
+                    if (minSecLock) {
+                        def delayLock = durationLock
+                        runIn(delayLock, lockDoor)
+                    } else {
+                        def delayLock = durationLock * 60
+                        runIn(delayLock, lockDoor)
+                    }
                 } else {
-                    def delayUnlock = (durationUnlock * 60)
-                    runIn(delayUnlock, unlockDoor)
+                    ifDebug("deviceActivationSwitchHandler: Unlocking the door now")
+                    countUnlock = maxRetriesUnlock
+                    state.status = "(Unlocked)"
+                    lock1.unlock()
+                    if (minSecUnlock) {
+                        def delayUnlock = durationUnlock
+                        runIn(delayUnlock, unlockDoor)
+                    } else {
+                        def delayUnlock = (durationUnlock * 60)
+                        runIn(delayUnlock, unlockDoor)
+                    }
                 }
             }
         }
@@ -373,6 +442,11 @@ def deviceActivationSwitchHandler(evt) {
     }
 }
 
+def deviceActivationToggleHandler(evt) {
+    ifTrace("Action Toggled")
+    ifTrace("Action Toggled deviceActivationToggle = ${deviceActivationToggle}")
+}
+                
 // Application Functions
 def lockDoor() {
     ifTrace("lockDoor")
