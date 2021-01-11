@@ -51,7 +51,7 @@ def mainPage() {
       input name: "Pause", type: "button", title: state.pauseButtonName, submitOnChange:true
       if (location?.name.contains("Home / Hubitat C7 - Dev")) {input "variableInfo", "bool", title: "Get Variable Info", submitOnChange: true, required: false, defaultValue: false
           log.info "${location.name}"
-          getVariableInfo()}
+          getVariableInfo}
       app.updateSetting("variableInfo",[value:"false",type:"bool"])
       input "detailedInstructions", "bool", title: "Enable detailed instructions?", submitOnChange: true, required: false, defaultValue: false
       if (detailedInstructions == true) {paragraph "This option performs an immediate update to the current status of the Lock, Contact Sensor, Presence Sensor, and Status of the application.  It will automatically reset back to off after activated."}
