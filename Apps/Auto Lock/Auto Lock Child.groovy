@@ -10,7 +10,7 @@ import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.22"
+	state.version = "1.1.24"
 }
 
 definition(
@@ -316,6 +316,12 @@ def lock1LockHandler(evt) {
     } else if (lock1?.currentValue("lock") != null) {state.lock1LockStatus = "[${lock1.currentValue("lock")}]"
     } else if (lock1?.latestValue("lock") != null) {state.lock1Lock1Status = "[${lock1.latestValue("lock")}]"
     } else {state.lock1LockStatus = " "}
+    
+    // Log Manual Locking
+    ifDebug("${evt.name} : ${evt.descriptionText}")
+    if (evt.type == 'physical' && evt.descriptionText.endsWith('locked by keypad')) {/* Do something here */
+    } else if (evt.type == 'physical' && evt.descriptionText.contains('locked by code')) {/* Do something here */
+    } else if (evt.type == 'physical' && evt.descriptionText.endsWith('locked by manual')) {/* Do something here */}
     updateLabel()
     
     // Device Handler Action
@@ -364,9 +370,14 @@ def lock1UnlockHandler(evt) {
     } else if (evt.value == "unlocked") {state.lock1LockStatus = "[${evt.value}]"
     } else if (lock1?.currentValue("lock") != null) {state.lock1LockStatus = "[${lock1.currentValue("lock")}]"
     } else if (lock1?.latestValue("lock") != null) {state.lock1Lock1Status = "[${lock1.latestValue("lock")}]"
-    } else {state.lock1LockStatus = " "
-        if (evt.value != null) {log.warn "${evt.value}"}
-    }
+    } else {state.lock1LockStatus = " "}
+    
+    // Log Manual Unlocking
+    ifDebug("${evt.name} : ${evt.descriptionText}")
+    if (evt.type == 'physical' && evt.descriptionText.endsWith('unlocked by keypad')) {/* Do something here */
+	} else if (evt.type == 'physical' && evt.descriptionText.contains('unlocked by code')) {/* Do something here */
+	} else if (evt.type == 'physical' && evt.descriptionText.endsWith('unlocked by manual')) {/* Do something here */}
+    
     updateLabel()
     
     // Device Handler Action
@@ -405,7 +416,7 @@ def lock1BatteryHandler(evt) {
     } else {state.lock1BatteryStatus = " "
         if (evt.value != null) {log.warn "${evt.value}"}
     }
-    if ((evt.value != null) && lowBatteryDevicesToNotifyFor.contains("1") && (notifyOnLowBattery == true) && (lowBatteryAlertThreshold != null) && (lowBatteryAlertThreshold < 0) && (evt.value < ${lowBatteryAlertThreshold})) {
+    if ((evt.value != null) && lowBatteryDevicesToNotifyFor?.contains("1") && (notifyOnLowBattery == true) && (lowBatteryAlertThreshold != null) && (lowBatteryAlertThreshold < 0) && (evt.value < ${lowBatteryAlertThreshold})) {
         lowBatteryDevicesToNotifyFor.deviceNotification("${lock1} battery is ${evt.value}.")}
     updateLabel()
     
@@ -669,7 +680,6 @@ def disabledHandler(evt) {
                 state.status = "(Disabled)"
                 ifTrace("disabledHandler: (Disabled)")
                 state.disabled = true
-                updateLabel()
             }
         }
     }
@@ -827,6 +837,8 @@ def retryUnlockingCommand() {
     
 //Label Updates
 void updateLabel() {
+    unschedule(updateLabel)
+    runIn(1800, updateLabel)
     ifTrace("updateLabel")
 //    getVariableInfo()
     if (getAllOk() == false) {
