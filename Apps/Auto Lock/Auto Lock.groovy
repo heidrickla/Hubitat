@@ -7,7 +7,7 @@
  *   12/28/2020 - Project Published to GitHub
  */
 def setVersion(){
-	state.version = "1.1.22" // Version number of this app
+	state.version = "1.1.24" // Version number of this app
 	state.InternalName = "Auto Lock"   // this is the name used in the JSON file for this app
 }
 
