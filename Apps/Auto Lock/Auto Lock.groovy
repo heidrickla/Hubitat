@@ -85,6 +85,7 @@ def appButtonHandler(btn) {
     state.created = !state.created
     if (!getChildDevice("CombinedPres_${app.id}")) {
         addChildDevice("hubitat", "Virtual Presence", "CombinedPres_${app.id}", null, [label: thisName, name: thisName])
+        (getChildDevice("CombinedPres_${app.id}")).updateSetting("txtEnable",[value:false, type:"bool"])
     } else if (state.createCombinedSensorButtonName =="Delete Combined Presence Sensor") {
         (deleteChildDevice("CombinedPres_${app.id}"))
     }
