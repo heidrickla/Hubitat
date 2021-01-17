@@ -7,7 +7,7 @@
  *   12/28/2020 - Project Published to GitHub
  */
 def setVersion(){
-	state.version = "1.1.24" // Version number of this app
+	state.version = "1.1.25" // Version number of this app
 	state.InternalName = "Auto Lock"   // this is the name used in the JSON file for this app
 }
 
@@ -34,9 +34,14 @@ def mainPage() {
         	}
         }
         else {
-        	section("Create a new Auto Lock Instance.") {
+        	section("<b>Create a new Auto Lock Instance.</b>") {
             	app(name: "childApps", appName: "Auto Lock Child", namespace: "heidrickla", title: "New Auto Lock Instance", multiple: true)
         	}
+            section("<b>Create a combined presence sensor.</b>") {
+                paragraph "Presence will update from present to not present once all devices are away. It will update from not present to present when any device arrives."
+			    input "presSensors", "capability.presenceSensor", title: "Select Presence Sensors", submitOnChange: true, required: false, multiple: true
+                input name: "Create", type: "button", title: state.createCombinedSensorButtonName, submitOnChange:true, width: 5
+            }
     	}
     }
 }
@@ -47,9 +52,41 @@ def installed() {
 }
 
 def updated() {
-	unsubscribe()
 	initialize()
+    if (state?.created == null) {(state.created = false)}
 }
 
 def initialize() {
+    if (presSensors) {subscribe(presSensors, "presence", handler)}
+    setCreateCombinedSensorButtonName()
+}
+
+def handler(evt) {
+	def present = false
+    presSensors.each { presSensor ->
+		if (presSensor.currentValue("presence") == "present") {present = true}
+    }
+    def previousPresent = (getChildDevice("CombinedPres_${app.id}")).currentValue("presence")
+	if (present) {(getChildDevice("CombinedPres_${app.id}")).arrived()}
+	else {(getChildDevice("CombinedPres_${app.id}")).departed()}
+    
+    //if (getChildDevice("CombinedPres_${app.id}")) {(getChildDevice("CombinedPres_${app.id}")).setHumidity(averageHumid())}
+}
+
+def setCreateCombinedSensorButtonName() {
+    if (getChildDevice("CombinedPres_${app.id}")) {
+        state.createCombinedSensorButtonName = "Delete Combined Presence Sensor"
+    } else if (!getChildDevice("CombinedPres_${app.id}")) {
+        state.createCombinedSensorButtonName = "Create Combined Presence Sensor"
+    }
+}
+
+def appButtonHandler(btn) {
+    state.created = !state.created
+    if (!getChildDevice("CombinedPres_${app.id}")) {
+        addChildDevice("hubitat", "Virtual Presence", "CombinedPres_${app.id}", null, [label: thisName, name: thisName])
+    } else if (state.createCombinedSensorButtonName =="Delete Combined Presence Sensor") {
+        (deleteChildDevice("CombinedPres_${app.id}"))
+    }
+setCreateCombinedSensorButtonName()
 }
