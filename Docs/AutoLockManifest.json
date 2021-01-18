@@ -1,9 +1,9 @@
 {
   "packageName": "Auto Lock",
   "author": "Lewis Heidrick",
-  "version": "1.1.25",
+  "version": "1.1.26",
   "minimumHEVersion": "2.2.4",
-  "dateReleased": "2021-01-05",
+  "dateReleased": "2021-01-17",
   "apps": [
     {
       "id": "0150b5f8-c75d-4f5f-bf21-18542e669416",
