@@ -4,13 +4,14 @@
  *   Author Chris Sader, modified by Lewis Heidrick with permission from Chris to takeover the project.
  *   
  *   12/28/2020 - Project Published to GitHub
+ *   Pending - 
  */
 import groovy.transform.Field
 import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.25"
+	state.version = "1.1.26"
 }
 
 definition(
@@ -68,10 +69,15 @@ def mainPage() {
         app.updateSetting("refresh",[value:"false",type:"bool"])
         if (detailedInstructions == true) {paragraph "This is the lock that all actions will activate against. The app watches for locked or unlocked status sent from the device.  If it cannot determine the current status, the last known status of the lock will be used.  If there is not a last status available and State sync fix is enabled it will attempt to determine its' state, otherwise it will default to a space. Once a device is selected, the current status will appear on the device.  The status can be updated by refreshing the page or clicking the refresh status toggle."}
         input "lock1", "capability.lock", title: "Lock: ${state.lock1LockStatus} ${state.lock1BatteryStatus}", submitOnChange: true, required: true
-        if (detailedInstructions == true) {paragraph "This is the contact sensor that will be used to determine if the door is open.  The lock will not lock while the door is open.  If it does become locked and Bolt/Frame strike protection is enabled, it will immediately try to unlock to keep from hitting the bolt against the frame. If you are having issues with your contact sensor or do not use one, it is recommended to disable Bolt/frame strike protection as it will interfere with the operation of the lock."}
-        input "contact", "capability.contactSensor", title: "Door: ${state.contactContactStatus} ${state.contactBatteryStatus}", submitOnChange: true, required: false
     }
     section(title: "Locking Options:", hideable: true, hidden: hideLockOptionsSection()) {
+        if (detailedInstructions == true) {paragraph "This is the contact sensor that will be used to determine if the door is open.  The lock will not lock while the door is open.  If it does become locked and Bolt/Frame strike protection is enabled, it will immediately try to unlock to keep from hitting the bolt against the frame. If you are having issues with your contact sensor or do not use one, it is recommended to disable Bolt/frame strike protection as it will interfere with the operation of the lock."}
+        if (settings.whenToLock?.contains("1")) {input "contact", "capability.contactSensor", title: "Door: ${state.contactContactStatus} ${state.contactBatteryStatus}", submitOnChange: true, required: false}
+        if (detailedInstructions == true) {paragraph "This is the presence sensor that will be used to lock when presence is not present.  If using the combined presence feature then the lock will lock once all sensors have departed."}
+        if (settings.whenToLock?.contains("2")) {input "lockPresence", "capability.presenceSensor", title: "Presence: ${state.lockPresenceStatus} ${state.lockPresenceBatteryStatus}", submitOnChange: true, required: false, multiple: false}
+        if (settings.whenToLock?.contains("4")) {input "deviceActivationSwitch", "capability.switch", title: "Switch Triggered Action: ${state.deviceActivationSwitchStatus}", submitOnChange: true, required: false, multiple: false}
+        if (settings.whenToLock?.contains("4")) {input "deviceActivationToggle", "bool", title: "Invert Switch Triggered Action: ", submitOnChange: true, required: false, multiple: false, defaultValue: false}
+        input "whenToLock", "enum", title: "When to lock?  Default: '(Lock when lock unlocks)'", options: whenToLockOptions, defaultValue: ["0"], required: true, multiple: true, submitOnChange:true
         if (detailedInstructions == true) {paragraph "Use seconds instead changes the timer used in the application to determine if the delay before performing locking actions will be based on minutes or seconds.  This will update the label on the next option to show its' setting."}
         input "minSecLock", "bool", title: "Use seconds instead?", submitOnChange:true, required: true, defaultValue: false
         if (detailedInstructions == true) {paragraph "This value is used to determine the delay before locking actions occur. The minutes/seconds are determined by the Use seconds instead toggle."}
@@ -83,15 +89,16 @@ def mainPage() {
         input "maxRetriesLock", "number", title: "Maximum number of retries?", required: false, submitOnChange: false, defaultValue: 3
         if (detailedInstructions == true) {paragraph "Delay between retries in second(s) provides the lock enough time to perform the locking action.  If you set this too low  and it send commands to the lock before it completes its' action, the commands will be ignored.  Three to five seconds is usually enough time for the lock to perform any actions and report back its' status."}
         input "delayBetweenRetriesLock", "number", title: "Delay between retries in second(s)?", require: false, submitOnChange: false, defaultValue: 5
+        if (settings.whenToLock?.contains("7")) {input name: "modesLockStatus", type: "mode", title: "Lock when entering one of these modes",required: false, multiple: true, submitOnChange: false}
+        if (settings.whenToLock?.contains("5")) {input "hsmLockStatus","enum", title: "Lock when HSM enters these modes",required: false, multiple: true, submitOnChange: false, options: hsmStateOptions}
         if (enableHSMToggle == true) {input "hsmCommandsLock","enum", title: "Set HSM status when Locked?",required: false, multiple: false, submitOnChange: false, options: hsmCommandOptions}
     }
     section(title: "Unlocking Options:", hideable: true, hidden: hideUnlockOptionsSection()) {
         if (detailedInstructions == true) {if (settings.whenToUnlock?.contains("2")) {paragraph "This sensor is used for presence unlock triggers."}}
         if (settings.whenToUnlock?.contains("2")) {input "unlockPresence", "capability.presenceSensor", title: "Presence: ${state.unlockPresenceStatus} ${state.unlockPresenceBatteryStatus}", submitOnChange: true, required: false, multiple: false}
-//wip        if ((settings.whenToUnlock?.contains("2")) && (unlockPresenceSensor)) {input "allUnlockPresenceSensor", "bool", title: "Present status requires all presence sensors to be present?", submitOnChange:true, required: false, defaultValue: false}
-        if (settings.whenToUnlock?.contains("3")) {input "fireMedical", "capability.smokeDetector", title: "Fire/Medical: ${fireMedicalStatus} ${fireMedicalBatteryStatus}", submitOnChange: true, required: false, multiple: false}
-        if (settings.whenToUnlock?.contains("4")) {input "deviceActivationSwitch", "capability.switch", title: "Switch Triggered Action: ${deviceActivationSwitchStatus}", submitOnChange: true, required: false, multiple: false}
-        if (settings.whenToUnlock?.contains("4")) {input "deviceActivationToggle", "bool", title: "Invert Switch Triggered Action: ", submitOnChange: false, required: false, multiple: false, defaultValue: false}
+        if (settings.whenToUnlock?.contains("3")) {input "fireMedical", "capability.smokeDetector", title: "Fire/Medical: ${state.fireMedicalStatus} ${state.fireMedicalBatteryStatus}", submitOnChange: true, required: false, multiple: false}
+        if (settings.whenToUnlock?.contains("4")) {input "deviceActivationSwitch", "capability.switch", title: "Switch Triggered Action: ${state.deviceActivationSwitchStatus}", submitOnChange: true, required: false, multiple: false}
+        if (settings.whenToUnlock?.contains("4")) {input "deviceActivationToggle", "bool", title: "Invert Switch Triggered Action: ", submitOnChange: true, required: false, multiple: false, defaultValue: false}
         if (detailedInstructions == true) {paragraph "Bolt/Frame strike protection detects when the lock is locked and the door is open and immediately unlocks it to prevent it striking the frame.  This special case uses a modified delay timer that ignores the Unlock it how many minutes/seconds later and Delay between retries option.  It does obey the Maximum number of retries though."}
         if (detailedInstructions == true) {paragraph "Presence detection uses the selected presence device(s) and on arrival will unlock the door.  It is recommended to use a combined presence app to prevent false triggers.  I recommend Presence Plus and Life360 with States by BPTWorld, and the iPhone Presence driver (it works on android too).  You might need to mess around with battery optimization options to get presence apps to work reliably on your phone though."}
         if (detailedInstructions == true) {paragraph "Fire/Medical panic unlock will unlock the door whenever a specific sensor is opened.  I have zones on my alarm that trip open if one of these alarms are triggered and use an Envisalink 4 to bring over the zones into Hubitat. They show up as contact sensors.  If you have wired smoke detectors to your alarm panel, these are typically on zone 1.  You could use any sensor though to trigger."}
@@ -111,6 +118,8 @@ def mainPage() {
         input "maxRetriesUnlock", "number", title: "Maximum number of retries? While door is open it will wait for it to close.", submitOnChange: false, required: false, defaultValue: 3
         if (detailedInstructions == true) {paragraph "Delay between retries in second(s) provides the lock enough time to perform the unlocking action.  If you set this too low and it send commands to the lock before it completes its' action, the commands will be ignored.  Three to five seconds is usually enough time for the lock to perform any actions and report back its' status."}
         input "delayBetweenRetriesUnlock", "number", title: "Delay between retries in second(s)?", submitOnChange: false, require: false, defaultValue: 3
+        if (settings.whenToUnlock?.contains("7")) {input name: "modesUnlockStatus", type: "mode", title: "Unlock when entering one of these modes",required: false, multiple: true, submitOnChange: false}
+        if (settings.whenToUnlock?.contains("0")) {input "hsmUnlockStatus","enum", title: "Unlock when HSM enters these modes",required: false, multiple: true, submitOnChange: false, options: hsmStateOptions}
         if (enableHSMToggle == true) {input "hsmCommandsUnlock","enum", title: "Set HSM when Unlocked?",required: false, multiple: false, submitOnChange: false, options: hsmCommandOptions}
         }
     }
@@ -158,12 +167,24 @@ def mainPage() {
 }
 
 // Application settings and startup
+@Field static List<Map<String,String>> whenToLockOptions = [
+    ["0": "Lock when lock unlocks"],
+    ["1": "Lock when contact closes"],
+    ["2": "Presence departure lock"],
+    ["7": "Lock with Modes"],
+    ["4": "Switch triggered lock"],
+    ["5": "Lock with HSM"],
+    ["6": "Prevent locking under any circumstances"]
+]
+
 @Field static List<Map<String,String>> whenToUnlockOptions = [
     ["1": "Bolt/frame strike protection"],
     ["2": "Presence unlock"],
     ["3": "Fire/medical panic unlock"],
+    ["7": "Unlock with Modes"],
     ["4": "Switch triggered unlock"],
     ["5": "State sync fix"],
+    ["0": "Unlock with HSM"],
     ["6": "Prevent unlocking under any circumstances"]
 ]
 
@@ -230,6 +251,8 @@ def installed() {
     if (state.lock1BatteryStatus == null) {state.lock1BatteryStatus = " "}
     if (state.contactContactStatus == null) {state.contactContactStatus = " "}
     if (state.contactBatteryStatus == null) {state.contactBatteryStatus = " "}
+    if (state.lockPresenceStatus == null) {state.lockPresenceStatus = " "}
+    if (state.lockPresenceBatteryStatus == null) {state.lockPresenceBatteryStatus = " "}
     if (state.unlockPresenceStatus == null) {state.unlockPresenceStatus = " "}
     if (state.unlockPresenceBatteryStatus == null) {state.unlockPresenceBatteryStatus = " "}
     if (state.fireMedicalStatus == null) {state.fireMedicalStatus = " "}
@@ -249,6 +272,8 @@ def updated() {
     if (state.lock1BatteryStatus == null) {state.lock1BatteryStatus = " "}
     if (state.contactContactStatus == null) {state.contactContactStatus = " "}
     if (state.contactBatteryStatus == null) {state.contactBatteryStatus = " "}
+    if (state.lockPresenceStatus == null) {state.lockPresenceStatus = " "}
+    if (state.lockPresenceBatteryStatus == null) {state.lockPresenceBatteryStatus = " "}
     if (state.unlockPresenceStatus == null) {state.unlockPresenceStatus = " "}
     if (state.unlockPresenceBatteryStatus == null) {state.unlockPresenceBatteryStatus = " "}
     if (state.fireMedicalStatus == null) {state.fireMedicalStatus = " "}
@@ -277,15 +302,48 @@ def initialize() {
     subscribe(contact, "contact.open", contactContactHandler)
     subscribe(contact, "contact.closed", contactContactHandler)
     subscribe(contact, "battery", contactBatteryHandler)
+    if (settings.whenToLock?.contains("2")) {subscribe(lockPresence, "presence", lockPresenceHandler)}
+    if (settings.whenToLock?.contains("2")) {subscribe(lockPresence, "battery", lockPresenceBatteryHandler)}
     if (settings.whenToUnlock?.contains("2")) {subscribe(unlockPresence, "presence", unlockPresenceHandler)}
     if (settings.whenToUnlock?.contains("2")) {subscribe(unlockPresence, "battery", unlockPresenceBatteryHandler)}
     subscribe(enableHSMSwitch, "switch", enableHSMHandler)
-    if ((whenToLockHSM || whenToUnlockHSM) && (enableHSMActions)) {subscribe(location, "hsmStatus", hsmStatusHandler)}   //For app to subscribe to HSM status
-    if ((whenToLockHSM || whenToUnlockHSM) && (enableHSMActions)) {subscribe(location, "hsmAlerts", hsmAlertHandler)}    //For app to subscribe to HSM alerts
+    if (settings.whenToLock?.contains("7") || settings.whenToUnlock?.contains("7")) {subscribe(location, "mode", modeHandler)}
+    if (((whenToLockHSM || whenToUnlockHSM) && enableHSMActions) || (settings.whenToLock?.contains("5") && (hsmLockStatus)) || (settings.whenToUnlock?.contains("0") && (hsmUnlockStatus))) {subscribe(location, "hsmStatus", hsmStatusHandler)}   //For app to subscribe to HSM status
+    if ((whenToLockHSM || whenToUnlockHSM) && enableHSMActions) {subscribe(location, "hsmAlerts", hsmAlertHandler)}    //For app to subscribe to HSM alerts
     getAllOk()
 }
 
 // Device Handlers
+def modeHandler(evt) {
+    // HSM Status Handler Action
+    if (evt.value != null) {ifTrace("modeHandler: ${evt.value}")}
+    if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {
+        ifTrace("modeHandler: Application is paused or disabled.")
+    } else if (!settings.whenToLock?.contains("6") && settings.whenToLock?.contains("7") && modesLockStatus?.contains(location.mode) && (lock1?.currentValue("lock") == "unlocked") && ((contact?.currentValue("contact") == "closed") || (contact == null))) {
+        countLocked = maxRetriesLock
+        if (minSecLock) {
+            def delayLock = durationLock
+            ifDebug("Re-arming lock in ${durationLock} second(s)")
+            runIn(delayLock, lockDoor)
+        } else {
+            def delayLock = (durationLock * 60)
+            ifDebug("Re-arming lock in ${durationLock} minute(s)")
+            runIn(delayLock, lockDoor)
+        }
+    } else if (!settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("7") && hsmUnlockStatus?.contains(location.mode) && (lock1?.currentValue("lock") == "locked")) {
+        countUnlocked = maxRetriesUnlock
+        if (minSecUnlock) {
+            def delayLock = durationUnlock
+            ifDebug("Unlocking in ${durationUnlock} second(s)")
+            runIn(delayUnlock, unlockDoor)
+        } else {
+            def delayUnlock = (durationUnlock * 60)
+            ifDebug("Unlocking door in ${durationUnlock} minute(s)")
+            runIn(delayUnlock, unlockDoor)
+        }
+    }
+}
+
 def hsmAlertHandler(evt) {
     // HSM Alert Handler Action
     if (evt.value != null) {ifTrace("hsmAlertHandler: ${evt.value}")}
@@ -294,6 +352,36 @@ def hsmAlertHandler(evt) {
     else if (hsmLogLevel == "3") {log.trace "HSM Alert: $evt.value" + (evt.value == "rule" ? ",  $evt.descriptionText" : "")}
     else {}
 //    only has descriptionText for rule alert
+}
+
+def hsmStatusHandler(evt) {
+    // HSM Status Handler Action
+    if (evt.value != null) {ifTrace("hsmStatusHandler: ${evt.value}")}
+    if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {
+        ifTrace("hsmStatusHandler: Application is paused or disabled.")
+    } else if (!settings.whenToLock?.contains("6") && settings.whenToLock?.contains("5") && hsmLockStatus?.contains(location.hsmStatus) && (lock1?.currentValue("lock") == "unlocked") && ((contact?.currentValue("contact") == "closed") || (contact == null))) {
+        countLocked = maxRetriesLock
+        if (minSecLock) {
+            def delayLock = durationLock
+            ifDebug("Re-arming lock in in ${durationLock} second(s)")
+            runIn(delayLock, lockDoor)
+        } else {
+            def delayLock = (durationLock * 60)
+            ifDebug("Re-arming lock in ${durationLock} minute(s)")
+            runIn(delayLock, lockDoor)
+        }
+    } else if (!settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("0") && hsmUnlockStatus?.contains(location.hsmStatus) && (lock1?.currentValue("lock") == "locked")) {
+        countUnlocked = maxRetriesUnlock
+        if (minSecUnlock) {
+            def delayLock = durationLock
+            ifDebug("Re-arming lock in in ${durationLock} second(s)")
+            runIn(delayUnlock, unlockDoor)
+        } else {
+            def delayUnlock = (durationUnlock * 60)
+            ifDebug("Unlocking door in ${durationUnlock} minute(s)")
+            runIn(delayUnlock, unlockDoor)
+        }
+    }
 }
 
 def enableHSMHandler(evt) {
@@ -347,7 +435,7 @@ def lock1LockHandler(evt) {
         ifDebug("Cancelling previous lock task...")
         unschedule(lockDoor)                  // ...we don't need to lock it later.
         state.status = "(Locked)"
-    } else {
+    } else if (settings.whenToLock?.contains("0")) {
         countLocked = maxRetriesLock
         state.status = "(Unlocked)"
         if (minSecLock) {
@@ -391,6 +479,8 @@ def lock1UnlockHandler(evt) {
         runIn(delayUnlock, unlockDoor)
     } else if (settings.whenToUnlock?.contains("3") && (fireMedical?.currentValue("smokeSensor") == "detected")) {
         // Keeping door unlocked until the sensor clears.
+    } else if (settings.whenToLock?.contains("6")) {
+    // Locking is disabled. Doing nothing.
     } else {
         countLocked = maxRetriesLock
         state.status = "(Unlocked)"
@@ -459,7 +549,7 @@ def contactContactHandler(evt) {
         def delayUnlock = 1
         runIn(delayUnlock, checkUnlockedStatus)
         lock1.refresh()
-    } else if ((contact?.currentValue("contact") == "closed") && (lock1?.currentValue("lock") == "unlocked")) {
+    } else if (!settings.whenToLock?.contains("6") && settings.whenToLock?.contains("1") && (contact?.currentValue("contact") == "closed") && (lock1?.currentValue("lock") == "unlocked")) {
         ifDebug("Door closed, locking door.")
         countLock = maxRetriesLock
         unschedule(lockDoor)
@@ -492,6 +582,45 @@ def contactBatteryHandler(evt) {
     
 }
 
+def lockPresenceHandler(evt) {
+    // Device Status
+    if (evt.value != null) {ifTrace("lockPresenceHandler: ${evt.value}")
+        state.unlockPresenceStatus = "[${evt.value}]"
+    } else if (evt.value == "arrived") {state.lockPresenceStatus = "[${evt.value}]"
+    } else if (evt.value == "departed") {state.lockPresenceStatus = "[${evt.value}]"
+    } else if (lockPresence?.currentValue("presence") != null) {state.lockPresenceStatus = "[${lockPresence.currentValue("presence")}]"
+    } else if (lockPresence?.latestValue("presence") != null) {state.lockPresenceStatus = "[${lockPresence.latestValue("presence")}]"                                                                                                      
+    } else {(state?.lockPresenceStatus = " ")}
+    updateLabel()
+    
+    // Device Handler Action
+    if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {ifTrace("lockPresenceHanlder: Application is paused or disabled.")
+    } else if (!settings.whenToLock?.contains("6") && settings.whenToLock?.contains("2") && (lockPresence?.currentValue("presence") == "not present")) {
+        countLock = maxRetriesLock
+        unschedule(lockDoor)
+        if (minSecLock) {
+            def delayLock = durationLock
+            runIn(delayLock, lockDoor)
+        } else {
+            def delayLock = (durationLock * 60)
+                runIn(delayLock, lockDoor)
+        }
+    }
+}
+
+def lockPresenceBatteryHandler(evt) {
+    // Device Status
+    if (evt.value != null) {ifTrace("lockPresenceBatteryHandler: ${evt.value}")
+        state.unlockPresenceBatteryStatus = "Battery: [${evt.value}]"
+    } else if (lockPresence?.currentValue("battery") != null) {state.lockPresenceBatteryStatus = "Battery: [${lockPresence.currentValue("battery")}]"
+    } else if (lockPresence?.latestValue("battery") != null) {state.lockPresenceBatteryStatus = "Battery: [${lockPresence.latestValue("battery")}]"                                                                                                      
+    } else {(state.lockPresenceBatteryStatus = " ")}
+    updateLabel()
+    
+    // Device Handler Action
+    
+}
+
 def unlockPresenceHandler(evt) {
     // Device Status
     if (evt.value != null) {ifTrace("unlockPresenceHandler: ${evt.value}")
@@ -505,7 +634,18 @@ def unlockPresenceHandler(evt) {
     
     // Device Handler Action
     if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {ifTrace("unlockPresenceHanlder: Application is paused or disabled.")
-    } else if (!settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("2") && (unlockPresence?.currentValue("presence") == "present")) {unlockDoor()}
+    } else if (!settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("2") && (unlockPresence?.currentValue("presence") == "present")) {
+        countUnlock = maxRetriesUnlock
+        state.status = "(Unlocked)"
+        lock1.unlock()
+        if (minSecUnlock) {
+            def delayUnlock = durationUnlock
+            runIn(delayUnlock, unlockDoor)
+        } else {
+            def delayUnlock = (durationUnlock * 60)
+            runIn(delayUnlock, unlockDoor)
+        }
+    }
 }
 
 def unlockPresenceBatteryHandler(evt) {
@@ -565,7 +705,7 @@ def fireMedicalBatteryHandler(evt) {
 def deviceActivationSwitchHandler(evt) {
     // Device Status
     if (evt.value != null) {ifTrace("deviceActivationSwitchHandler: ${evt.value}")
-        state.deviceActivationSwitchStatus = "[${deviceActivationSwitch.currentValue("contact")}]"
+        state.deviceActivationSwitchStatus = "[${deviceActivationSwitch.currentValue("switch")}]"
     } else if (deviceActivationSwitch?.currentValue("switch") != null) {state.deviceActivationSwitchStatus = "[${deviceActivationSwitch.currentValue("switch")}]"
     } else if (deviceActivationSwitch?.latestValue("switch") != null) {state.deviceActivationSwitchStatus = "[${deviceActivationSwitch.latestValue("switch")}]"
     } else {(state.deviceActivationSwitchStatus = " ")}
@@ -579,7 +719,7 @@ def deviceActivationSwitchHandler(evt) {
             state.deviceActivationSwitchState = it.currentValue("switch")
         }
         if (state.deviceActivationSwitchState == "on") {
-            if ((deviceActivationToggle == true) && (!settings.whenToUnlock?.contains("6") == true) && (getHSMUnlockOk() == true)) {
+            if ((deviceActivationToggle == true) && !settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("4")) {
                 ifDebug("deviceActivationSwitchHandler: Unlocking the door now")
                 countUnlock = maxRetriesUnlock
                 state.status = "(Unlocked)"
@@ -591,7 +731,7 @@ def deviceActivationSwitchHandler(evt) {
                     def delayUnlock = (durationUnlock * 60)
                     runIn(delayUnlock, unlockDoor)
                 }
-            } else if (getHSMLockOk() == true) {
+            } else if (!settings.whenToLock?.contains("6") && settings.whenToLock?.contains("4")) {
                 ifDebug("deviceActivationSwitchHandler: Locking the door now")
                 countLock = maxRetriesLock
                 state.status = "(Locked)"
@@ -604,8 +744,8 @@ def deviceActivationSwitchHandler(evt) {
                     runIn(delayLock, lockDoor)
                 }
             }
-        } else if ((state.deviceActivationSwitchState == "off") && (!settings.whenToUnlock?.contains("6") == true)) {
-            if ((deviceActivationToggle == true) && (getHSMLockOk() == true)){
+        } else if (state.deviceActivationSwitchState == "off") {
+            if ((deviceActivationToggle == true) && (!settings.whenToLock?.contains("6") == true) && settings.whenToLock?.contains("4")){
                 countLock = maxRetriesLock
                 state.status = "(Locked)"
                 lock1.lock()
@@ -616,7 +756,7 @@ def deviceActivationSwitchHandler(evt) {
                     def delayLock = durationLock * 60
                     runIn(delayLock, lockDoor)
                 }
-            } else if (getHSMUnlockOk() == true) {
+            } else if (!settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("4")) {
                 ifDebug("deviceActivationSwitchHandler: Unlocking the door now")
                 countUnlock = maxRetriesUnlock
                 state.status = "(Unlocked)"
@@ -663,7 +803,7 @@ def disabledHandler(evt) {
                     state.paused = false
                     state.disabled = false
                     state.pausedOrDisabled = false
-                    if ((lock1?.currentValue("lock") == "unlocked") && ((contact?.currentValue("contact") == "closed") || (contact == null))) {
+                    if (!settings.whenToLock?.contains("6") && (lock1?.currentValue("lock") == "unlocked") && ((contact?.currentValue("contact") == "closed") || (contact == null))) {
                         if (minSecLock) {
                             def delayLock = durationLock
                             ifDebug("disabledHandler: App was enabled or unpaused and lock was unlocked. Locking door.")
@@ -706,7 +846,7 @@ def lockDoor() {
     } else {
         updateLabel()
         ifTrace("lockDoor: contact = ${contact}")
-        if ((contact?.currentValue("contact") == "closed") || (contact == null)) {
+        if (!settings.whenToLock?.contains("6") && (contact?.currentValue("contact") == "closed") || (contact == null)) {
             ifDebug("Door is closed, locking door.")
             lock1.lock()
             unschedule(checkLockedStatus)
@@ -738,8 +878,9 @@ def lockDoor() {
 
 def unlockDoor() {
     ifTrace("unlockDoor")
-    if ((getAllOk() == false) || (state?.pausedOrDisabled == true) || settings.whenToUnlock?.contains("6")) {ifTrace("lockDoor: Application is paused or disabled.")
+    if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {ifTrace("lockDoor: Application is paused or disabled.")
     } else if (getHSMUnlockOk() == false) {ifDebug("Unable to unlock the door. HSM Status is ${location.HSMStatus}.")
+    } else if (settings.whenToUnlock?.contains("6")) {ifDebug("Prevent unlocking under any circumstances is enabled.")
     } else {
         updateLabel()
         ifTrace("unlockDoor: Unlocking door.")
@@ -1086,12 +1227,18 @@ def getVariableInfo() {
         log.info "settings.ifLevel?.contains(1) = ${settings.ifLevel.contains("1")}"
         log.info "settings.ifLevel?.contains(2) = ${settings.ifLevel.contains("2")}"
         log.info "settings.ifLevel?.contains(3) = ${settings.ifLevel.contains("3")}"
-        log.info "settings.whenToUnlock?.contains(1) = ${(settings.whenToUnlock?.contains("1") == true)}"
-        log.info "settings.whenToUnlock?.contains(2) = ${(settings.whenToUnlock?.contains("2") == true)}"
-        log.info "settings.whenToUnlock?.contains(3) = ${(settings.whenToUnlock?.contains("3") == true)}"
-        log.info "settings.whenToUnlock?.contains(4) = ${(settings.whenToUnlock?.contains("4") == true)}"
-        log.info "settings.whenToUnlock?.contains(5) = ${(settings.whenToUnlock?.contains("5") == true)}"
-        log.info "settings.whenToUnlock?.contains(6) = ${(settings.whenToUnlock?.contains("6") == true)}"
+        log.info "settings.whenToLock?.contains(1) = ${settings.whenToLock?.contains("1")}"
+        log.info "settings.whenToLock?.contains(2) = ${settings.whenToLock?.contains("2")}"
+        log.info "settings.whenToLock?.contains(3) = ${settings.whenToLock?.contains("3")}"
+        log.info "settings.whenToLock?.contains(4) = ${settings.whenToLock?.contains("4")}"
+        log.info "settings.whenToLock?.contains(5) = ${settings.whenToLock?.contains("5")}"
+        log.info "settings.whenToLock?.contains(6) = ${settings.whenToLock?.contains("6")}"
+        log.info "settings.whenToUnlock?.contains(1) = ${settings.whenToUnlock?.contains("1")}"
+        log.info "settings.whenToUnlock?.contains(2) = ${settings.whenToUnlock?.contains("2")}"
+        log.info "settings.whenToUnlock?.contains(3) = ${settings.whenToUnlock?.contains("3")}"
+        log.info "settings.whenToUnlock?.contains(4) = ${settings.whenToUnlock?.contains("4")}"
+        log.info "settings.whenToUnlock?.contains(5) = ${settings.whenToUnlock?.contains("5")}"
+        log.info "settings.whenToUnlock?.contains(6) = ${settings.whenToUnlock?.contains("6")}"
         log.info "delayBetweenRetriesLock = ${delayBetweenRetriesLock}"
         log.info "enableHSMToggle = ${enableHSMToggle}"
         log.info "hsmCommandsLock = ${hsmCommandsLock}"
