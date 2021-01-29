@@ -36,7 +36,7 @@ metadata {
 	}
 	preferences {
         input "parameterThirteen", "enum", title: "Motion Sensitivity (Default: 'High')", options: [1:"Low", 2:"Medium", 3:"High"],  defaultValue: 3, required: false
-        input "parameterEighteen", "number", title: "Motion Timeout Duration (1 to 60 minutes or 255 = 5 seconds) Default: 4 minutes",  defaultValue: 4, required: false, range: "1..255"
+        input "parameterEighteen", "number", title: "Motion Timeout Duration (1 to 60 minutes) Default: 1 minute",  defaultValue: 1, required: false, range: "1..60"
 	    input "parameterTwenty", "enum", title: "Motion Sensitivity (Default: 'Basic Report')", options: [1:"Notification Report", 2:"Basic Set", 3:"Basic Report"],  defaultValue: 3, required: false
         input "parameterTwentyFour", "number", title: "Temperature and Light Sensor Frequency Setting (5 to 60 minutes) Default: 60 minutes",  defaultValue: 60, required: false, range: "5..60"
         input "parameterTwentyEight", "bool", title: "Enable LED Flash Indicator", defaultValue: true
