@@ -36,9 +36,9 @@ metadata {
 	}
 	preferences {
         input "parameterThirteen", "enum", title: "Motion Sensitivity (Default: 'High')", options: [1:"Low", 2:"Medium", 3:"High"],  defaultValue: 3, required: false
-        input "parameterEighteen", "number", title: "Motion Timeout Duration (1 to 60 minutes or 255 = 5 seconds) Default: 4 minutes",  defaultValue: 4, required: false
-		input "parameterTwenty", "enum", title: "Motion Sensitivity (Default: 'Basic Report')", options: [1:"Notification Report", 2:"Basic Set", 3:"Basic Report"],  defaultValue: 3, required: false
-        input "parameterTwentyFour", "number", title: "Motion Timeout Duration (5 to 60 minutes) Default: 60 minutes",  defaultValue: 60, required: false
+        input "parameterEighteen", "number", title: "Motion Timeout Duration (1 to 60 minutes or 255 = 5 seconds) Default: 4 minutes",  defaultValue: 4, required: false, range: "1..255"
+	    input "parameterTwenty", "enum", title: "Motion Sensitivity (Default: 'Basic Report')", options: [1:"Notification Report", 2:"Basic Set", 3:"Basic Report"],  defaultValue: 3, required: false
+        input "parameterTwentyFour", "number", title: "Temperature and Light Sensor Frequency Setting (5 to 60 minutes) Default: 60 minutes",  defaultValue: 60, required: false, range: "5..60"
         input "parameterTwentyEight", "bool", title: "Enable LED Flash Indicator", defaultValue: true
     }
 }
@@ -273,10 +273,10 @@ def configure() {
         param24 = 60
         log.warn "Invalid Motion Timeout Duration. Valid ranges are from 5 to 60 minutes. Defaluting to 60."
     }
-    log.info "Sending parameter 18, Motion timeout: ${param18==255 ? " 5 Seconds" : param18 + " ${timing}"}"
+    log.info "Sending parameter 18, Motion Timeout: ${param18==255 ? " 5 Seconds" : param18 + " ${timing}"}"
     log.info "Sending parameter 20, PIR Timeout Duration Setting: " + param20 + "${param20}"
     log.info "Sending parameter 24, Temperature and Light Sensor Sensing Frequency Setting: " + param24 + "${param24}"
-    log.info "Sending parameter 28, LED flash indicator: " + param28 + "${param28==1 ? "=On" : "=Off"}"
+    log.info "Sending parameter 28, LED Flash Indicator: " + param28 + "${param28==1 ? "=On" : "=Off"}"
     delayBetween([
         zwave.configurationV1.configurationSet(configurationValue: [param13], parameterNumber: 13, size: 1).format(),
         zwave.configurationV1.configurationSet(configurationValue: [param18], parameterNumber: 18, size: 1).format(),
