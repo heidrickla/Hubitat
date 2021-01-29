@@ -257,7 +257,7 @@ def zwaveEvent(hubitat.zwave.commands.manufacturerspecificv2.ManufacturerSpecifi
 	result
 }
 def configure() { 
-    def param13 = parameterThirteen ? parameterThirteen as int : 3    
+    def param13 = parameterThirteen ? parameterThirteen as int : 3
     def param18 = parameterEighteen ? parameterEighteen as int : 4
     def param20 = parameterTwenty ? parameterTwenty as int : 3
     def param24 = parameterTwentyFour ? parameterTwentyFour as int : 60
