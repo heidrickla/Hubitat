@@ -35,11 +35,10 @@ metadata {
         input 'tuxedoTouchIP', 'string', title: 'Tuxedo Touch IP', required: true, defaultValue: "192.168.1.1"
         input 'tuxedoTouchPort', 'number', title: 'Port Number', required: true, defaultValue: 80
         input 'partitionNumber', 'number', title: 'Partition Number', required: true, defaultValue: 1
-    
         input 'userPin', 'password', title: 'User PIN', required: true, defaultValue: "0000"
-        input 'publicKey', 'password', title: 'Public Key', required: true, defaultValue: "ab1c05e6713dcfdf8f522aa7881f9lew"
-        input 'privateKey', 'password', title: 'Private Key', required: true, defaultValue: "c710021ef96187cda5ed6221c73fe79532c21b871893bd2edfe4c29327b636faab1c05e6713dcfdf8f522aa7881f9sdf"
-        input 'hubitatMac', 'password', title: 'Hubitat MAC', required: true, submitOnChange:true, defaultValue: "34E1D1806BGC"
+        input 'publicKey', 'password', title: 'Public Key', required: true, defaultValue: "154af58e978ad9ce297d998ad8a869dc"
+        input 'privateKey', 'password', title: 'Private Key', required: true, defaultValue: "d720021ef96187cda5ed6221c73fe79532c21b871893bd2edfe4c29327b636faab1c05e6713dcfdf8f522aa7881f9cef"
+        input 'hubitatMac', 'password', title: 'Hubitat MAC', required: true, submitOnChange:true, defaultValue: "35D3D1806FBC"
         if (hubitatMac != null) {
             hubitatMacReplace = hubitatMac.replace(":", "-")
             device.updateSetting("hubitatMac",[value:hubitatMacReplace,type:"string"])
@@ -55,14 +54,14 @@ def parse(String description) {}
 def addDeviceMac() {
 //-- This Allowed to add/enroll authenticated device MAC ID for remote access. This service only accessible in Local Area network. This command requires Admin authorization.
 //Example : http://<Tuxedo IP>:<port>/system_http_api/API_REV01/Registration/AdddeviceMAC?MAC=<DeviceMACID>
-    getHmac(privateKey)
+    authToken = getHmac()
     def apiRev = "API_REV01"
     def apiBasePath = "/system_http_api/" + apiRev
     def postParams = [
         uri: "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}/Registration/AdddeviceMAC?MAC=${hubitatMac}",
 		requestContentType: 'application/json',
-		contentType: 'application/json',
-        headers: ['authtoken':"${authorizationToken}",'MACID':"${hubitatMac}"]//,
+		contentType: 'application/json'
+        //headers: ['authtoken':"MACID:${hubitatMac}"]//,
 		//body : ["name": "value"]
 	]
     log.debug postParams
@@ -73,14 +72,14 @@ def addDeviceMac() {
 def removeDeviceMac() {
 //-- This Allowed to remove the previously added device MAC ID for remote access. This service only accessible in Local Area network. This command requires Admin authorization.
 //Example : http://<Tuxedo IP>:<port>/system_http_api/API_REV01/Registration/RemovedeviceMAC?MAC=<DeviceMACID>
-    getHmac(privateKey)
+    authToken = getHmac()
     def apiRev = "API_REV01"
     def apiBasePath = "/system_http_api/" + apiRev
     def postParams = [
         uri: "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}/Registration/RemovedeviceMAC?MAC=${hubitatMac}",
 		requestContentType: 'application/json',
-		contentType: 'application/json',
-        headers: ['authtoken':"${authorizationToken}",'MACID':"${hubitatMac}"]//,
+		contentType: 'application/json'
+        //headers: ['authtoken':getHmac(),'MACID':hubitatMac]
 		//body : ["name": "value"]
 	]
     log.debug postParams
@@ -91,14 +90,14 @@ def removeDeviceMac() {
 def revokeKeys() {
 //-- This service is used to revoke the private and public key associated with a device mac. This service only accessible in Local Area network. This command requires Admin authorization.
 //Example : http://<Tuxedo IP>:<port>/system_http_api/API_REV01/Administration/RevokeKeys?devMAC=<MAC ID>&operation=set
-    getHmac(privateKey)
+    authToken = getHmac()
     def apiRev = "API_REV01"
     def apiBasePath = "/system_http_api/" + apiRev
     def postParams = [
         uri: "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}/Administration/RevokeKeys?devMAC=${hubitatMac}&operation=set",
 		requestContentType: 'application/json',
-		contentType: 'application/json',
-        headers: ['authtoken':"${authorizationToken}",'MACID':"${hubitatMac}"]//,
+		contentType: 'application/json'
+        //headers: ['authtoken':getHmac(),'MACID':hubitatMac]//,
 		//body : ["name": "value"]
 	]
     log.debug postParams
@@ -109,104 +108,120 @@ def revokeKeys() {
 def getStatus() {
 //Example : http://<tuxedop ip>:<port>/system_http_api/API_REV01/GetSecurityStatus?operation=get
 //Authentication token should be added as part of authtoken http header (Authentication token recieved during registeration operation. Not applicable for browser clients)
-    getHmac(privateKey)
+    authToken = getHmac()
     def apiRev = "API_REV01"
     def apiBasePath = "/system_http_api/" + apiRev
     def postParams = [
         uri: "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}/GetSecurityStatus?operation=get",
 		requestContentType: 'application/json',
 		contentType: 'application/json',
-        headers: ['authtoken':"${authorizationToken}",'MACID':"${hubitatMac}"]//,
+        headers: ['authtoken':getHmac()]//,
 		//body : ["name": "value"]
 	]
     log.debug postParams
     log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}/GetSecurityStatus?operation=get"
 	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
 }
-
+def taco = "MACID:Browser,Path:http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}/AdvancedSecurity/ArmWithCode"
 def armStay() {
 //Example : http://<Tuxedo IP>:<port>/system_http_api/API_REV01/AdvancedSecurity/ArmWithCode?arming=AWAY,STAY,NIGHT&pID=1 or 2 or 3...&ucode=Valid User Code&operation=set
 //Authentication token should be added as part of authtoken http header (Authentication token recieved during registeration operation. Not applicable for browser clients)
-    getHmac(privateKey)
+    authToken = getHmac()
     def apiRev = "API_REV01"
     def apiBasePath = "/system_http_api/${apiRev}"
     def postParams = [
-        uri: "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}/AdvancedSecurity/ArmWithCode?arming=STAY@pID=${partitionNumber}&ucode=${userPin}&operation=set",
+        uri: "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}/AdvancedSecurity/ArmWithCode?arming=STAY&pID=${partitionNumber}&ucode=${userPin}&operation=set",
 		requestContentType: 'application/json',
 		contentType: 'application/json',
-        headers: ['authtoken':"${authorizationToken}",'MACID':"${hubitatMac}"]//,
+        headers: ['authtoken':getHmac()],
 		//body : ["name": "value"]
 	]
     log.debug postParams
-    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}/AdvancedSecurity/ArmWithCode?arming=STAY@pID=${partitionNumber}&ucode=${userPin}&operation=set"
+    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}/AdvancedSecurity/ArmWithCode?arming=STAY&pID=${partitionNumber}&ucode=${userPin}&operation=set"
 	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
 }
 
 def armAway() {
 //Example : http://<Tuxedo IP>:<port>/system_http_api/API_REV01/AdvancedSecurity/ArmWithCode?arming=AWAY,STAY,NIGHT&pID=1 or 2 or 3...&ucode=Valid User Code&operation=set
 //Authentication token should be added as part of authtoken http header (Authentication token recieved during registeration operation. Not applicable for browser clients)
-    getHmac(privateKey)
+    authToken = getHmac()
     def apiRev = "API_REV01"
     def apiBasePath = "/system_http_api/${apiRev}"
     def postParams = [
-        uri: "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}/AdvancedSecurity/ArmWithCode?arming=AWAY@pID=${partitionNumber}&ucode=${userPin}&operation=set",
+        uri: "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}/AdvancedSecurity/ArmWithCode?arming=AWAY&pID=${partitionNumber}&ucode=${userPin}&operation=set",
 		requestContentType: 'application/json',
 		contentType: 'application/json',
-        headers: ['authtoken':"${authorizationToken}",'MACID':"${hubitatMac}"]//,
+        headers: ['authtoken':getHmac()]//,
 		//body : ["name": "value"]
 	]
     log.debug postParams
-    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}/AdvancedSecurity/ArmWithCode?arming=AWAY@pID=${partitionNumber}&ucode=${userPin}&operation=set"
+    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}/AdvancedSecurity/ArmWithCode?arming=AWAY&pID=${partitionNumber}&ucode=${userPin}&operation=set"
 	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
 }
 
 def armNight() {
 //Example : http://<Tuxedo IP>:<port>/system_http_api/API_REV01/AdvancedSecurity/ArmWithCode?arming=AWAY,STAY,NIGHT&pID=1 or 2 or 3...&ucode=Valid User Code&operation=set
 //Authentication token should be added as part of authtoken http header (Authentication token recieved during registeration operation. Not applicable for browser clients)
-    getHmac(privateKey)
+    authToken = getHmac()
     def apiRev = "API_REV01"
     def apiBasePath = "/system_http_api/${apiRev}"
     def postParams = [
-        uri: "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}/AdvancedSecurity/ArmWithCode?arming=NIGHT@pID=${partitionNumber}&ucode=${userPin}&operation=set",
+        uri: "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}/AdvancedSecurity/ArmWithCode?arming=NIGHT&pID=${partitionNumber}&ucode=${userPin}&operation=set",
 		requestContentType: 'application/json',
 		contentType: 'application/json',
-        headers: ['authtoken':"${authorizationToken}",'MACID':"${hubitatMac}"]//,
+        headers: ['authtoken':getHmac()]//,
 		//body : ["name": "value"]
 	]
     log.debug postParams
-    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}/AdvancedSecurity/ArmWithCode?arming=NIGHT@pID=${partitionNumber}&ucode=${userPin}&operation=set"
+    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}/AdvancedSecurity/ArmWithCode?arming=NIGHT&pID=${partitionNumber}&ucode=${userPin}&operation=set"
 	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
 }
 
 def disarm() {
 //Example : http://<Tuxedo IP>:<port>/system_http_api/API_REV01/AdvancedSecurity/Disarm?pID=1 or 2 or 3...&ucode=Valid User Code&operation=set
 //Authentication token should be added as part of authtoken http header (Authentication token recieved during registeration operation. Not applicable for browser clients)
-    getHmac(privateKey)
+    authToken = getHmac()
     def apiRev = "API_REV01"
     def apiBasePath = "/system_http_api/${apiRev}"
     def postParams = [
         uri: "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}/AdvancedSecurity/Disarm?pID=${partitionNumber}&ucode=${userPin}&operation=set",
 		requestContentType: 'application/json',
 		contentType: 'application/json',
-        headers: ['authtoken':"${authorizationToken}",'MACID':"${hubitatMac}"]//,
+        headers: ['authtoken':getHmac()]//,
 		//body : ["name": "value"]
 	]
     log.debug postParams
-    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}/AdvancedSecurity/ArmWithCode?arming=NIGHT@pID=${partitionNumber}&ucode=${userPin}&operation=set"
+    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}/AdvancedSecurity/Disarm?pID=${partitionNumber}&ucode=${userPin}&operation=set"
 	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
 }
 
 def myCallbackMethod(response, data) {
     if(data["dataitem1"] == "datavalue1") {
-        log.debug "data was passed successfully"
-        log.debug "status of post call is: ${response.status}"
+        if (response.status == 200) {
+            log.debug "data was passed successfully"
+            log.debug "status of post call is: ${response.status}"
+        } else if (response.status == 302) {
+            // Redirected
+            log.error "Redirected, status of post call is: ${response.status}"
+        } else if (response.status == 401) {
+            log.error "Unauthorized, status of post call is: ${response.status}"
+        } else if (response.status == 405) {
+            // Method Not Allowed
+            log.error "Method Not Allowed, status of post call is: ${response.status}"
+        } else if (response.status == 408) {
+            // Request Timeout
+            log.error "Request Timeout, status of post call is: ${response.status}"
+        } else {
+            log.error "Unknown error, status of post call is: ${response.status}"
+        }
+
     }
 }
 
-def getHmac(authenticationToken) {
+def getHmac() {
     String result
-    String key = "${authenticationToken}"
-    String data = "${authenticationToken}"
+    String key = "${privateKey}"
+    String data = "${privateKey}"
 
     try {
 
@@ -221,6 +236,7 @@ def getHmac(authenticationToken) {
         byte[] rawHmac = mac.doFinal(data.getBytes());
         result= rawHmac.encodeHex()
 		log.debug "HMAC_SHA1 result: ${result}"
+        return result
 
     } catch (Exception e) {
         log.debug("Failed to generate HMAC : " + e.getMessage())
