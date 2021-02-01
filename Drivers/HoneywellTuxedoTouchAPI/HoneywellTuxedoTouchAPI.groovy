@@ -38,7 +38,7 @@ metadata {
         input 'tuxedoTouchPort', 'number', title: 'Port Number', required: true, defaultValue: 80
         input 'partitionNumber', 'number', title: 'Partition Number', required: true, defaultValue: 1
         input 'userPin', 'password', title: 'User PIN', required: true, defaultValue: "0000"
-        input 'publicKey', 'password', title: 'Public Key', required: true, defaultValue: "014af58e978ad9ce297d998ad8a869dc"
+        input 'publicKey', 'password', title: 'Public Key', required: true, defaultValue: "014af58e512ad9ce297d998ad8a869dc"
         input 'privateKey', 'password', title: 'Private Key', required: true, defaultValue: "d760021ef96187cda5ed6221c73fe79532c21b871893bd2edfe4c29327b636faab1c05e6713dcfdf8f522aa7881f9cef"
         input 'hubitatMac', 'password', title: 'Hubitat MAC', required: true, submitOnChange:true, defaultValue: "38C4D1806FBC"
         if (hubitatMac != null) {
