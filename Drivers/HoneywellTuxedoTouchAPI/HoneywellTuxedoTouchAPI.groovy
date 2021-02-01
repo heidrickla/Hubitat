@@ -82,17 +82,18 @@ def calcParams(apiCommandPath, queryParamsMap) {
 }
 
 def addDeviceMac() {
+//WIP
 //-- This Allowed to add/enroll authenticated device MAC ID for remote access. This service only accessible in Local Area network. This command requires Admin authorization.
-//Example : http://<Tuxedo IP>:<port>/system_http_api/API_REV01/Registration/AdddeviceMAC?MAC=<DeviceMACID>
+//Example: http://<tuxedop ip>:<port>/system_http_api/API_REV01/Registration/Register?mac=[MAC ID ...]&operation=set.
     def apiCommandPath = "/Registration/AdddeviceMAC"
-    def postParams = calcParams(apiCommandPath, [MAC: hubitatMac.toString()])
+    def postParams = calcParams(apiCommandPath, [mac: hubitatMac.toString()])
     log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}?MAC=${hubitatMac}"
 	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
 }
 
 def removeDeviceMac() {
 //-- This Allowed to add/enroll authenticated device MAC ID for remote access. This service only accessible in Local Area network. This command requires Admin authorization.
-//Example : http://<Tuxedo IP>:<port>/system_http_api/API_REV01/Registration/RemovedeviceMAC?MAC=<DeviceMACID>
+Example: http://<tuxedop ip>:<port>/system_http_api/API_REV01/Registration/Unregister?token=[Device MAC used during register]&operation=set
     def apiCommandPath = "/Registration/RemovedeviceMAC"
     def postParams = calcParams(apiCommandPath, [MAC: hubitatMac.toString()])
     log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}?MAC=${hubitatMac}"
