@@ -109,7 +109,7 @@ def removeDeviceMac() {
 		body: body
 	]
     log.debug postParams
-    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}/Registration/RemovedeviceMAC?MAC=${hubitatMac}"
+    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}?MAC=${hubitatMac}"
 	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
 }
 
@@ -173,6 +173,7 @@ def getStatus() {
         ]
     
     log.debug("postParams = ${postParams}")
+    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}&operation=set"
 	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
 }
 
@@ -205,6 +206,7 @@ def armStay() {
         ]
     
     log.debug "postParams = ${postParams}"
+    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}?arming=STAY&pID=${partitionNumber}&ucode=${userPin}&operation=set"
 	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
 }
 
@@ -221,7 +223,7 @@ def armAway() {
     def _api_iv_enc = subBytes(privateKeyBytes, 32, privateKeyBytes.size() - 32)
     def _api_iv_encStr = hubitat.helper.HexUtils.byteArrayToHexString(_api_iv_enc)
     
-    def params = encrypt(new groovy.json.JsonOutput().toJson([arming: "AWAY", pID: partitionNumber.toString(), ucode: userPin], operation: "set"), _api_key_enc, _api_iv_enc)
+    def params = encrypt(new groovy.json.JsonOutput().toJson([arming: "AWAY", pID: partitionNumber.toString(), ucode: userPin, operation: "set"]), _api_key_enc, _api_iv_enc)
     def body = new groovy.json.JsonOutput().toJson([param: params, len: params.length(), tstamp: new Date().getTime().toString()])
     def postParams = [
         uri: "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}${params}",
@@ -236,7 +238,7 @@ def armAway() {
             body: body
         ]
     log.debug postParams
-    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}/AdvancedSecurity/ArmWithCode?arming=AWAY&pID=${partitionNumber}&ucode=${userPin}&operation=set"
+    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}?arming=AWAY&pID=${partitionNumber}&ucode=${userPin}&operation=set"
 	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
 }
 
@@ -268,7 +270,7 @@ def armNight() {
             body: body
         ]
     log.debug postParams
-    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}/AdvancedSecurity/ArmWithCode?arming=NIGHT&pID=${partitionNumber}&ucode=${userPin}&operation=set"
+    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}?arming=NIGHT&pID=${partitionNumber}&ucode=${userPin}&operation=set"
 	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
 }
 
@@ -300,7 +302,7 @@ def disarm() {
             body: body
         ]
     log.debug postParams
-    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}${params}"
+    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}?pID=${partitionNumber}&ucode=${userPin}&operation=set"
 	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
 }
 
