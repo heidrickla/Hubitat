@@ -191,49 +191,19 @@ def signString(plainText, keyenc)
     return rawHmac?.encodeHex()
 }
 
-def encrypt(plainText, keyenc, ivenc)
-{
+def encrypt(plainText, keyenc, ivenc) {
     def cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", "SunJCE")
     SecretKeySpec key = new SecretKeySpec(keyenc, "AES")
     IvParameterSpec iv = new IvParameterSpec(ivenc)
-    
     cipher.init(Cipher.ENCRYPT_MODE, key, iv)
     def result = cipher.doFinal(plainText.getBytes("UTF-8")).encodeBase64().toString()
 }
 
-def decrypt(cypherText, keyenc, ivenc)
-{
+def decrypt(cypherText, keyenc, ivenc) {
     byte[] decodedBytes = cypherText.decodeBase64()
-    
     def cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", "SunJCE")
     SecretKeySpec key = new SecretKeySpec(keyenc, "AES")
     cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(ivenc))
     
     return new String(cipher.doFinal(decodedBytes), "UTF-8")
-}
-
-// Not currently in use
-def getHmac() {
-    String result
-    String key = "${privateKey}"
-    String data = "${privateKey}"
-
-    try {
-
-        // get an hmac_sha1 key from the raw key bytes
-        SecretKeySpec signingKey = new SecretKeySpec(key.getBytes(), "HmacSHA1");
-
-        // get an hmac_sha1 Mac instance and initialize with the signing key
-        Mac mac = Mac.getInstance("HmacSHA1");
-        mac.init(signingKey);
-
-        // compute the hmac on input data bytes
-        byte[] rawHmac = mac.doFinal(data.getBytes());
-        result= rawHmac.encodeHex()
-		log.debug "HMAC_SHA1 result: ${result}"
-        return result
-
-    } catch (Exception e) {
-        log.debug("Failed to generate HMAC : " + e.getMessage())
-    }
 }
