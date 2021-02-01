@@ -61,7 +61,7 @@ def calcParams(apiCommandPath, queryParamsMap) {
     def _api_iv_enc = subBytes(privateKeyBytes, 32, privateKeyBytes.size() - 32)
     def _api_iv_encStr = hubitat.helper.HexUtils.byteArrayToHexString(_api_iv_enc)
     
-    def paramsStr = queryParamsMap.collect { k,v -> "$k=$v" }.join(‘&’)
+    def paramsStr = (queryParamsMap.collect { k,v -> "$k=$v" }).join('&')
     def paramsEnc = encrypt(new groovy.json.JsonOutput().toJson(queryParamsMap), _api_key_enc, _api_iv_enc)
     
     def postParams = [
