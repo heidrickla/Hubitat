@@ -54,13 +54,11 @@ def parse(String description) {}
 
 def calcParams(apiCommandPath, queryParamsMap) {
     def header = "MACID:" + hubitatMac + ",Path:" + apiBasePath + apiCommandPath
-    
     def privateKeyBytes = hubitat.helper.HexUtils.hexStringToByteArray(privateKey)
     def _api_key_enc = subBytes(privateKeyBytes, 0, 32)
     def authToken = signString(header, _api_key_enc)
     def _api_iv_enc = subBytes(privateKeyBytes, 32, privateKeyBytes.size() - 32)
     def _api_iv_encStr = hubitat.helper.HexUtils.byteArrayToHexString(_api_iv_enc)
-    
     def paramsStr = (queryParamsMap.collect { k,v -> "$k=$v" }).join('&')
     def paramsEnc = encrypt(new groovy.json.JsonOutput().toJson(queryParamsMap), _api_key_enc, _api_iv_enc)
     
@@ -77,7 +75,6 @@ def calcParams(apiCommandPath, queryParamsMap) {
         ]
     
     log.debug "postParams = ${postParams}"
-    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}"
     return postParams
 }
 
@@ -87,7 +84,6 @@ def addDeviceMac() {
 //Example: http://<tuxedop ip>:<port>/system_http_api/API_REV01/Registration/Register?mac=[MAC ID ...]&operation=set.
     def apiCommandPath = "/Registration/AdddeviceMAC"
     def postParams = calcParams(apiCommandPath, [mac: hubitatMac.toString()])
-    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}?MAC=${hubitatMac}"
 	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
 }
 
@@ -96,7 +92,6 @@ def removeDeviceMac() {
 Example: http://<tuxedop ip>:<port>/system_http_api/API_REV01/Registration/Unregister?token=[Device MAC used during register]&operation=set
     def apiCommandPath = "/Registration/RemovedeviceMAC"
     def postParams = calcParams(apiCommandPath, [MAC: hubitatMac.toString()])
-    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}?MAC=${hubitatMac}"
 	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
 }
 
@@ -105,7 +100,6 @@ def revokeKeys() {
 //Example : http://<Tuxedo IP>:<port>/system_http_api/API_REV01/Administration/RevokeKeys?devMAC=<MAC ID>&operation=set
     def apiCommandPath = "/Registration/RevokeKeys"
     def postParams = calcParams(apiCommandPath, [MAC: hubitatMac.toString(), operation: "set"])
-    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}?MAC=${hubitatMac}&operation=set"
 	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
 }
 
@@ -114,7 +108,6 @@ def getStatus() {
 //Example : http://<tuxedop ip>:<port>/system_http_api/API_REV01/GetSecurityStatus?operation=get
     def apiCommandPath = "/GetSecurityStatus"
     def postParams = calcParams(apiCommandPath, [operation: "get"])
-    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}?operation=set"
 	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
 }
 
