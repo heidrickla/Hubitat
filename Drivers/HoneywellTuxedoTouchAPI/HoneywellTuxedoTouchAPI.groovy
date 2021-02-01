@@ -66,8 +66,9 @@ def addDeviceMac() {
     def _api_iv_enc = subBytes(privateKeyBytes, 32, privateKeyBytes.size() - 32)
     def _api_iv_encStr = hubitat.helper.HexUtils.byteArrayToHexString(_api_iv_enc)
     
+    def params = encrypt(new groovy.json.JsonOutput().toJson([MAC: hubitatMac.toString()]), _api_key_enc, _api_iv_enc)
     def postParams = [
-        uri: "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}?MAC=${hubitatMac}",
+        uri: "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}${params}",
 		    requestContentType: 'application/json',
             headers:
             [
@@ -95,8 +96,9 @@ def removeDeviceMac() {
     def _api_iv_enc = subBytes(privateKeyBytes, 32, privateKeyBytes.size() - 32)
     def _api_iv_encStr = hubitat.helper.HexUtils.byteArrayToHexString(_api_iv_enc)
     
+    def params = encrypt(new groovy.json.JsonOutput().toJson([MAC: hubitatMac.toString()]), _api_key_enc, _api_iv_enc)
     def postParams = [
-        uri: "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}?MAC=${hubitatMac}",
+        uri: "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}${params}",
 		    requestContentType: 'application/json',
             headers:
             [
@@ -118,8 +120,16 @@ def revokeKeys() {
     def apiCommandPath = "/Administration/RevokeKeys"
     def header = "MACID:" + hubitatMac + ",Path:" + apiBasePath + apiCommandPath
     
+    def privateKeyBytes = hubitat.helper.HexUtils.hexStringToByteArray(privateKey)
+    def _api_key_enc = subBytes(privateKeyBytes, 0, 32)
+    def authToken = signString(header, _api_key_enc)
+    def _api_iv_enc = subBytes(privateKeyBytes, 32, privateKeyBytes.size() - 32)
+    def _api_iv_encStr = hubitat.helper.HexUtils.byteArrayToHexString(_api_iv_enc)
+    
+    def params = encrypt(new groovy.json.JsonOutput().toJson([devMac: hubitatMac.toString(), operation: "set"]), _api_key_enc, _api_iv_enc)
+    def body = new groovy.json.JsonOutput().toJson([param: params, len: params.length(), tstamp: new Date().getTime().toString()])
     def postParams = [
-        uri: "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}/Administration/RevokeKeys?devMAC=${hubitatMac}&operation=set",
+        uri: "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}${params}",
 		    requestContentType: 'application/json',
             headers:
             [
@@ -130,7 +140,7 @@ def revokeKeys() {
 		    body: body
 	]
     log.debug postParams
-    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}/Administration/RevokeKeys?devMAC=${hubitatMac}&operation=set"
+    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}?devMAC=${hubitatMac}&operation=set"
 	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
 }
 
@@ -179,7 +189,7 @@ def armStay() {
     def _api_iv_enc = subBytes(privateKeyBytes, 32, privateKeyBytes.size() - 32)
     def _api_iv_encStr = hubitat.helper.HexUtils.byteArrayToHexString(_api_iv_enc)
     
-    def params = encrypt(new groovy.json.JsonOutput().toJson([operation: "set", arming: "STAY", pID: partitionNumber.toString(), ucode: userPin]), _api_key_enc, _api_iv_enc)
+    def params = encrypt(new groovy.json.JsonOutput().toJson([arming: "STAY", pID: partitionNumber.toString(), ucode: userPin, operation: "set"]), _api_key_enc, _api_iv_enc)
     def body = new groovy.json.JsonOutput().toJson([param: params, len: params.length(), tstamp: new Date().getTime().toString()])
     def postParams = [
         uri: "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}${params}",
@@ -211,7 +221,7 @@ def armAway() {
     def _api_iv_enc = subBytes(privateKeyBytes, 32, privateKeyBytes.size() - 32)
     def _api_iv_encStr = hubitat.helper.HexUtils.byteArrayToHexString(_api_iv_enc)
     
-    def params = encrypt(new groovy.json.JsonOutput().toJson([operation: "set", arming: "AWAY", pID: partitionNumber.toString(), ucode: userPin]), _api_key_enc, _api_iv_enc)
+    def params = encrypt(new groovy.json.JsonOutput().toJson([arming: "AWAY", pID: partitionNumber.toString(), ucode: userPin], operation: "set"), _api_key_enc, _api_iv_enc)
     def body = new groovy.json.JsonOutput().toJson([param: params, len: params.length(), tstamp: new Date().getTime().toString()])
     def postParams = [
         uri: "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}${params}",
@@ -243,7 +253,7 @@ def armNight() {
     def _api_iv_enc = subBytes(privateKeyBytes, 32, privateKeyBytes.size() - 32)
     def _api_iv_encStr = hubitat.helper.HexUtils.byteArrayToHexString(_api_iv_enc)
     
-    def params = encrypt(new groovy.json.JsonOutput().toJson([operation: "set", arming: "NIGHT", pID: partitionNumber.toString(), ucode: userPin]), _api_key_enc, _api_iv_enc)
+    def params = encrypt(new groovy.json.JsonOutput().toJson([arming: "NIGHT", pID: partitionNumber.toString(), ucode: userPin, operation: "set"]), _api_key_enc, _api_iv_enc)
     def body = new groovy.json.JsonOutput().toJson([param: params, len: params.length(), tstamp: new Date().getTime().toString()])
     def postParams = [
         uri: "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}${params}",
@@ -275,7 +285,7 @@ def disarm() {
     def _api_iv_enc = subBytes(privateKeyBytes, 32, privateKeyBytes.size() - 32)
     def _api_iv_encStr = hubitat.helper.HexUtils.byteArrayToHexString(_api_iv_enc)
     
-    def params = encrypt(new groovy.json.JsonOutput().toJson([operation: "set", pID: partitionNumber.toString(), ucode: userPin]), _api_key_enc, _api_iv_enc)
+    def params = encrypt(new groovy.json.JsonOutput().toJson([pID: partitionNumber.toString(), ucode: userPin, operation: "set"]), _api_key_enc, _api_iv_enc)
     def body = new groovy.json.JsonOutput().toJson([param: params, len: params.length(), tstamp: new Date().getTime().toString()])
     def postParams = [
         uri: "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}${params}",
