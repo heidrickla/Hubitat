@@ -62,6 +62,8 @@ def calcParams(apiCommandPath, queryParamsMap) {
     def _api_iv_encStr = hubitat.helper.HexUtils.byteArrayToHexString(_api_iv_enc)
     def paramsStr = (queryParamsMap.collect { k,v -> "$k=$v" }).join('&')
     def paramsEnc = encrypt(new groovy.json.JsonOutput().toJson(queryParamsMap), _api_key_enc, _api_iv_enc)
+    //This was added as a test.
+    def body = new groovy.json.JsonOutput().toJson([param: paramsEnc, len: paramsEnc.length(), tstamp: new Date().getTime().toString()])
     
     def postParams = [
         uri: "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}?${paramsStr}",
