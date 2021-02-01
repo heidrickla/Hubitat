@@ -22,7 +22,7 @@ import javax.crypto.Mac
 
 metadata {
 	definition (name: "Honeywell Tuxedo Touch API", namespace: "heidrickla", author: "Lewis Heidrick") {
-		capability "Momentary"
+//		capability "Momentary"
         
         command "armStay"
         command "armAway"
