@@ -53,6 +53,7 @@ def apiBasePath = "/system_http_api/API_REV01"
 def parse(String description) {}
 
 def calcParams(apiCommandPath, queryParamsMap) {
+    def apiBasePath = "/system_http_api/API_REV01"
     def header = "MACID:" + hubitatMac + ",Path:" + apiBasePath + apiCommandPath
     def privateKeyBytes = hubitat.helper.HexUtils.hexStringToByteArray(privateKey)
     def _api_key_enc = subBytes(privateKeyBytes, 0, 32)
@@ -71,7 +72,7 @@ def calcParams(apiCommandPath, queryParamsMap) {
                 "authtoken": authToken,
                 "identity": _api_iv_encStr,
             ],
-		body: body
+		    body: body
         ]
     
     log.debug "postParams = ${postParams}"
