@@ -49,10 +49,51 @@ metadata {
     }
 }
 
-def apiRev = "API_REV01"
-def apiBasePath = "/system_http_api/" + API_REV
+def apiBasePath = "/system_http_api/API_REV01"
 def parse(String description) {}
 
+def calcParams(apiCommandPath, queryParamsMap) {
+    def header = "MACID:" + hubitatMac + ",Path:" + apiBasePath + apiCommandPath
+    
+    def privateKeyBytes = hubitat.helper.HexUtils.hexStringToByteArray(privateKey)
+    def _api_key_enc = subBytes(privateKeyBytes, 0, 32)
+    def authToken = signString(header, _api_key_enc)
+    def _api_iv_enc = subBytes(privateKeyBytes, 32, privateKeyBytes.size() - 32)
+    def _api_iv_encStr = hubitat.helper.HexUtils.byteArrayToHexString(_api_iv_enc)
+    
+    def paramsStr = queryParamsMap.collect { k,v -> "$k=$v" }.join(‘&’)
+    def paramsEnc = encrypt(new groovy.json.JsonOutput().toJson(queryParamsMap), _api_key_enc, _api_iv_enc)
+    
+    def postParams = [
+        uri: "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}?${paramsStr}",
+		    requestContentType: 'application/json',
+            headers:
+            [
+                "contentType": 'application/json',
+                "authtoken": authToken,
+                "identity": _api_iv_encStr,
+            ],
+		body: body
+        ]
+    
+    log.debug "postParams = ${postParams}"
+    params = decrypt(params, _api_key_enc, _api_iv_enc)
+    log.debug "params = ${params}"
+    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}${params}"
+    return postParams
+}
+
+def addDeviceMac() {
+//-- This Allowed to add/enroll authenticated device MAC ID for remote access. This service only accessible in Local Area network. This command requires Admin authorization.
+//Example : http://<Tuxedo IP>:<port>/system_http_api/API_REV01/Registration/AdddeviceMAC?MAC=<DeviceMACID>
+    def apiCommandPath = "/Registration/AdddeviceMAC"
+    def postParams = calcParams(apiCommandPath, [MAC: hubitatMac.toString()])
+
+    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}?MAC=${hubitatMac}"
+	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
+}
+
+/*
 def addDeviceMac() {
 //-- This Allowed to add/enroll authenticated device MAC ID for remote access. This service only accessible in Local Area network. This command requires Admin authorization.
 //Example : http://<Tuxedo IP>:<port>/system_http_api/API_REV01/Registration/AdddeviceMAC?MAC=<DeviceMACID>
@@ -84,6 +125,7 @@ def addDeviceMac() {
     log.debug "params = ${params}"
     log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}${params}"
 }
+*/
 
 def removeDeviceMac() {
 //-- This Allowed to remove the previously added device MAC ID for remote access. This service only accessible in Local Area network. This command requires Admin authorization.
@@ -257,36 +299,10 @@ def armAway() {
 
 def armNight() {
 //Example : http://<Tuxedo IP>:<port>/system_http_api/API_REV01/AdvancedSecurity/ArmWithCode?arming=AWAY,STAY,NIGHT&pID=1 or 2 or 3...&ucode=Valid User Code&operation=set
-//Authentication token should be added as part of authtoken http header (Authentication token recieved during registeration operation. Not applicable for browser clients)
-    def apiBasePath = "/system_http_api/API_REV01"
+
     def apiCommandPath = "/AdvancedSecurity/ArmWithCode"
-    def header = "MACID:" + hubitatMac + ",Path:" + apiBasePath + apiCommandPath
-    
-    def privateKeyBytes = hubitat.helper.HexUtils.hexStringToByteArray(privateKey)
-    def _api_key_enc = subBytes(privateKeyBytes, 0, 32)
-    def authToken = signString(header, _api_key_enc)
-    def _api_iv_enc = subBytes(privateKeyBytes, 32, privateKeyBytes.size() - 32)
-    def _api_iv_encStr = hubitat.helper.HexUtils.byteArrayToHexString(_api_iv_enc)
-    
-    def params = encrypt(new groovy.json.JsonOutput().toJson([arming: "NIGHT", pID: partitionNumber.toString(), ucode: userPin, operation: "set"]), _api_key_enc, _api_iv_enc)
-    def body = new groovy.json.JsonOutput().toJson([param: params, len: params.length(), tstamp: new Date().getTime().toString()])
-    def postParams = [
-        uri: "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}${params}",
-		    requestContentType: "application/json",
-            ignoreSSLIssues: true,
-            headers:
-            [
-                "contentType": 'application/json',
-                "authtoken": authToken,
-                "identity": _api_iv_encStr,
-            ],
-            body: body
-        ]
-    
-    log.debug "postParams = ${postParams}"
-    params = decrypt(params, _api_key_enc, _api_iv_enc)
-    log.debug "params = ${params}"
-    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}${params}"
+    def postParams = calcParams(apiCommandPath, [arming: "NIGHT", pID: partitionNumber.toString(), ucode: userPin, operation: "set"])
+
 	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
 }
 
