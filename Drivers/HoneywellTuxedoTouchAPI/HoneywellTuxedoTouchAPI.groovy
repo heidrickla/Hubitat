@@ -78,9 +78,11 @@ def addDeviceMac() {
             ],
 		body: body
 	]
-    log.debug postParams
-    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}?MAC=${hubitatMac}"
-	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
+    
+    log.debug "postParams = ${postParams}"
+    params = decrypt(params, _api_key_enc, _api_iv_enc)
+    log.debug "params = ${params}"
+    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}${params}"
 }
 
 def removeDeviceMac() {
@@ -108,9 +110,11 @@ def removeDeviceMac() {
             ],
 		body: body
 	]
-    log.debug postParams
-    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}?MAC=${hubitatMac}"
-	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
+    
+    log.debug "postParams = ${postParams}"
+    params = decrypt(params, _api_key_enc, _api_iv_enc)
+    log.debug "params = ${params}"
+    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}${params}"
 }
 
 def revokeKeys() {
@@ -139,9 +143,11 @@ def revokeKeys() {
             ],
 		    body: body
 	]
-    log.debug postParams
-    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}?devMAC=${hubitatMac}&operation=set"
-	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
+    
+    log.debug "postParams = ${postParams}"
+    params = decrypt(params, _api_key_enc, _api_iv_enc)
+    log.debug "params = ${params}"
+    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}${params}"
 }
 
 def getStatus() {
@@ -172,8 +178,10 @@ def getStatus() {
             body: body
         ]
     
-    log.debug("postParams = ${postParams}")
-    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}&operation=set"
+    log.debug "postParams = ${postParams}"
+    params = decrypt(params, _api_key_enc, _api_iv_enc)
+    log.debug "params = ${params}"
+    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}${params}"
 	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
 }
 
@@ -206,7 +214,9 @@ def armStay() {
         ]
     
     log.debug "postParams = ${postParams}"
-    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}?arming=STAY&pID=${partitionNumber}&ucode=${userPin}&operation=set"
+    params = decrypt(params, _api_key_enc, _api_iv_enc)
+    log.debug "params = ${params}"
+    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}${params}"
 	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
 }
 
@@ -237,8 +247,11 @@ def armAway() {
             ],
             body: body
         ]
-    log.debug postParams
-    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}?arming=AWAY&pID=${partitionNumber}&ucode=${userPin}&operation=set"
+    
+    log.debug "postParams = ${postParams}"
+    params = decrypt(params, _api_key_enc, _api_iv_enc)
+    log.debug "params = ${params}"
+    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}${params}"
 	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
 }
 
@@ -269,8 +282,11 @@ def armNight() {
             ],
             body: body
         ]
-    log.debug postParams
-    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}?arming=NIGHT&pID=${partitionNumber}&ucode=${userPin}&operation=set"
+    
+    log.debug "postParams = ${postParams}"
+    params = decrypt(params, _api_key_enc, _api_iv_enc)
+    log.debug "params = ${params}"
+    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}${params}"
 	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
 }
 
@@ -301,8 +317,11 @@ def disarm() {
             ],
             body: body
         ]
-    log.debug postParams
-    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}?pID=${partitionNumber}&ucode=${userPin}&operation=set"
+    
+    log.debug "postParams = ${postParams}"
+    params = decrypt(params, _api_key_enc, _api_iv_enc)
+    log.debug "params = ${params}"
+    log.debug "http://${tuxedoTouchIP}:${tuxedoTouchPort}${apiBasePath}${apiCommandPath}${params}"
 	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
 }
 
