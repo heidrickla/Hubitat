@@ -1,15 +1,14 @@
 /**
  *  GE Portable Smart Motion Sensor (Model 34193) DTH
  *
- *  Copyright © 2018 Michael Struck
+ *  Modified by: Lewis Heidrick, Michael Struck
  *  Original Author: Jeremy Williams (@jwillaz)
  *
- *  Version 1.0.1 9/29/18 
- *
+ *  Version 1.0.2 2/5/2021 
+ *  
  *  Version 1.0.0 (11/17/17)- Original release by Jeremy Williams . Great Work!
  *  Version 1.0.1 (9/29/18)- Updated by Michael Struck-Streamlined interface, added additional logging
- *
- *  Uses code from SmartThings
+ *  Version 1.0.2 (2/5/2021)- Modified for use with Hubitat and added parameter 24 for 35211's
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -31,6 +30,12 @@ metadata {
         capability "Configuration"
         
 		fingerprint mfr: "0063", prod: "4953", model: "3133", deviceJoinName: "GE Portable Smart Motion Sensor"
+	}
+    simulator {
+		status "inactive": "command: 3003, payload: 00"
+		status "active": "command: 3003, payload: FF"
+        status "battery 100%": "command: 8003, payload: 64"
+		status "battery 5%": "command: 8003, payload: 05"
 	}
 	preferences {
         input "parameterThirteen", "enum", title: "Motion Sensitivity (Default: 'High')", options: [1:"Low", 2:"Medium", 3:"High"],  defaultValue: 3, required: false
@@ -59,6 +64,7 @@ def updated() {
 def disableTestMode() {
     device.updateSetting("testMode",[value:"false",type:"bool"])
     device.updateSetting("parameterEighteen",[value:"1",type:"number"])
+    response(configure())
 }
 
 private getCommandClassVersions() {
@@ -215,6 +221,7 @@ def configure() {
     	param24 = 1
         log.warn "Invalid Temperature and Light Sensor Frequency Setting. Using 5 minutes"
     }
+    timing = param24==1 ? "Minute" : "Minutes"
     log.info "Sending parameter 24, Temperature and Light Sensor Frequency Setting: ${param24 + " ${timing}"}"
     log.info "Sending parameter 28, LED flash indicator: " + param28 + "${param28==1 ? "=On" : "=Off"}"
     delayBetween([
