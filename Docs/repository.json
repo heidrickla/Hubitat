@@ -4,12 +4,18 @@
   "payPalUrl": "https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=3MPZ3GU5XL8RS&item_name=Hubitat+Development&currency_code=USD",
   "packages": [
     {
-      "id": "29a47f4d-25b1-41ff-96e9-cad04a51f14b",
+      "id": "deef716e-62f1-444a-8771-f96610218bb8",
+      "name": "GE Portable Smart Motion Sensor",
+      "category": "Utility",
+      "location": "https://raw.githubusercontent.com/heidrickla/Hubitat/main/Docs/GEPortableMotion.json",
+      "description": "Driver for GE Portable Smart Motion Sensor."
+    },
+    {
+      "id": "c9174ead-c3fe-499c-afde-a86c429f92b9",
       "name": "Auto Lock",
-      "category": "Security",
+      "category": "Utility",
       "location": "https://raw.githubusercontent.com/heidrickla/Hubitat/main/Docs/AutoLockManifest.json",
-      "description": "Automatically lock the door after a pre-determined amount of time, when door closed after a delay, or when triggered with a switch. It will wait until the door is closed to lock, but if it's manually locked while the door is open, it will unlock the door. It also supports a disable switch and an activation switch trigger.",
-      "tags": ["Automations & Groups", "Monitoring", "Safety & Security", "Tools & Utilities", "Timers", "Doors & Windows" ]
+      "description": "Automatically lock the door after a pre-determined amount of time, when door closed after a delay, or when triggered with a switch."
     }
   ]
 }
