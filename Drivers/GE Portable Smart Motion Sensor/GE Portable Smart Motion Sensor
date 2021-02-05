@@ -34,7 +34,7 @@ metadata {
 	}
 	preferences {
         input "parameterThirteen", "enum", title: "Motion Sensitivity (Default: 'High')", options: [1:"Low", 2:"Medium", 3:"High"],  defaultValue: 3, required: false
-        input "parameterEighteen", "number", title: "Motion Timeout Duration (1 to 60 minutes) Default: 1 minutes",  defaultValue: 1, required: false, range: "1..60"
+        input "parameterEighteen", "number", title: "Motion Timeout Duration (1 to 60 minutes) Default: 1 minutes",  defaultValue: 1, required: false, range: "1..255"
         input "testMode", "bool", title: "Test Mode: Set Motion Timout Duration to 5 seconds for 10 minutes. It will default to 1 minute after test mode completes.", defaultValue: false, submitOnChange: true
         if (testMode == true) {
             device.updateSetting("parameterEighteen",[value:"255",type:"number"])
