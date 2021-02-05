@@ -20,6 +20,11 @@
  *  for the specific language governing permissions and limitations under the License.
  *
  */
+ def setVersion() {
+    state.name = "GE Portable Smart Motion Sensor"
+	state.version = "1.0.3"
+}
+ 
 metadata {
 	definition (name: "GE Portable Smart Motion Sensor 34193", namespace: "Heidrickla", author: "Lewis Heidrick") {
 		capability "Motion Sensor"
