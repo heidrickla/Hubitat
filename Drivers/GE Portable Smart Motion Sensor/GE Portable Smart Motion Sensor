@@ -4,11 +4,11 @@
  *  Modified by: Lewis Heidrick, Michael Struck
  *  Original Author: Jeremy Williams (@jwillaz)
  *
- *  Version 1.0.2 2/5/2021 
+ *  Version 1.0.4 2/5/2021 
  *  
  *  Version 1.0.0 (11/17/17)- Original release by Jeremy Williams . Great Work!
  *  Version 1.0.1 (9/29/18)- Updated by Michael Struck-Streamlined interface, added additional logging
- *  Version 1.0.2 (2/5/2021)- Modified for use with Hubitat and added parameter 24 for 35211's
+ *  Version 1.0.4 (2/5/2021)- Modified for use with Hubitat and added parameter 24 for 35211's
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -22,7 +22,7 @@
  */
  def setVersion() {
     state.name = "GE Portable Smart Motion Sensor"
-	state.version = "1.0.3"
+	state.version = "1.0.4"
 }
  
 metadata {
@@ -224,7 +224,7 @@ def configure() {
     log.info "Sending parameter 18, Motion timeout: ${param18==255 ? " 5 Seconds" : param18 + " ${timing}"}"
     if (param24 < 1 || param24 >60) {
     	param24 = 1
-        log.warn "Invalid Temperature and Light Sensor Frequency Setting. Using 5 minutes"
+        log.warn "Invalid Temperature and Light Sensor Frequency Setting. Using 1 minute"
     }
     timing = param24==1 ? "Minute" : "Minutes"
     log.info "Sending parameter 24, Temperature and Light Sensor Frequency Setting: ${param24 + " ${timing}"}"
@@ -232,7 +232,7 @@ def configure() {
     delayBetween([
         zwave.configurationV1.configurationSet(configurationValue: [param13], parameterNumber: 13, size: 1).format(),
         zwave.configurationV1.configurationSet(configurationValue: [param18], parameterNumber: 18, size: 1).format(),
-        zwave.configurationV1.configurationSet(configurationValue: [param18], parameterNumber: 24, size: 1).format(),
+        zwave.configurationV1.configurationSet(configurationValue: [param24], parameterNumber: 24, size: 1).format(),
         zwave.configurationV1.configurationSet(configurationValue: [param28], parameterNumber: 28, size: 1).format()
     ], 500)
 }
