@@ -10,7 +10,7 @@ import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.28"
+	state.version = "1.1.29"
 }
 
 definition(
@@ -157,7 +157,7 @@ def mainPage() {
         if (detailedInstructions == true) {paragraph "Enable Trace logging for 30 minutes will enable trace logs to show up in the Hubitat logs for 30 minutes after which it will turn them off. Useful for following the logic inside the application but usually not neccesary."}
         input "isTrace", "bool", title: "Enable Trace logging for 30 minutes", submitOnChange: false, required:false, defaultValue: false
         if (detailedInstructions == true) {paragraph "Logging level is used to permanantly set your logging level for the application.  If it is set higher than any temporary logging options you enable, it will override them.  If it is set lower than temporary logging options, they will take priority until their timer expires.  This is useful if you prefer you logging set to a low level and then can use the logging toggles for specific use cases so you dont have to remember to go back in and change them later.  It's also useful if you are experiencing issues and need higher logging enabled for longer than 30 minutes."}
-        input "ifLevel","enum", title: "Logging level", required: true, multiple: true, submitOnChange: false, options: logLevelOptions
+        input "ifLevel","enum", title: "Logging level", required: false, multiple: true, submitOnChange: false, options: logLevelOptions
         if (enableHSMToggle == true) {input "isHSM", "bool", title: "Enable HSM logging", submitOnChange: true, required:false, defaultValue: false}
         if ((enableHSMToggle == true) && (isHSM == true)) {input "hsmLogLevel","enum", title: "Show HSM Alerts in log as?", required: false, multiple: false, options: logLevelOptions}
     }
