@@ -6,8 +6,10 @@
  *   
  *   12/28/2020 - Project Published to GitHub
  */
+import groovy.transform.Field
+
 def setVersion(){
-	state.version = "1.1.29" // Version number of this app
+	state.version = "1.1.30" // Version number of this app
 	state.InternalName = "Auto Lock"   // this is the name used in the JSON file for this app
 }
 
@@ -41,6 +43,7 @@ def mainPage() {
                 paragraph "Presence will update from present to not present once all devices are away. It will update from not present to present when any device arrives."
 			    input "presSensors", "capability.presenceSensor", title: "Select Presence Sensors", submitOnChange: true, required: false, multiple: true
                 input name: "Create", type: "button", title: state.createCombinedSensorButtonName, submitOnChange:true, width: 5
+                displayFooter()
             }
     	}
     }
@@ -90,4 +93,10 @@ def appButtonHandler(btn) {
         (deleteChildDevice("CombinedPres_${app.id}"))
     }
 setCreateCombinedSensorButtonName()
+}
+
+def displayFooter(){
+	section() {
+		paragraph "<div style='color:#1A77C9;text-align:center'>Auto Lock<br><a href='https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=3MPZ3GU5XL8RS&item_name=Hubitat+Development&currency_code=USD' target='_blank'><img src='https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_37x23.jpg' border='0' alt='PayPal Logo'></a><br>Buy me a beer!</div>"
+	}       
 }
