@@ -420,7 +420,6 @@ def lock1UnlockHandler(evt) {
         // Keeping door unlocked until the sensor clears.
     } else if (settings.whenToLock?.contains("6")) {
         // Locking is disabled. Doing nothing.
-        if ((notifyOnFailure == true) && failureNotificationDevices && settings.failureNotifications?.contains("6")) {sendFailureNotification("Lock triggered while Preventing unlock under any circumstances was enabled")}
     } else if (settings.whenToLock?.contains("0")) {lockDoor()}
 }
 
