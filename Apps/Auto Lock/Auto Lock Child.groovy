@@ -10,7 +10,7 @@ import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.29"
+	state.version = "1.1.30"
 }
 
 definition(
@@ -40,12 +40,6 @@ def mainPage() {
         ifTrace("mainPage")
         turnOffLoggingTogglesIn30()
         setPauseButtonName()
-//      lock1LockHandler()
-//      lock1UnlockHandler()
-//      lock1BatteryHandler()
-//      contactContactHandler()
-//      contactBatteryHandler()
-//      diagnosticHandler()
 
     section("") {
       input name: "Pause", type: "button", title: state.pauseButtonName, submitOnChange:true
@@ -161,6 +155,7 @@ def mainPage() {
         if (enableHSMToggle == true) {input "isHSM", "bool", title: "Enable HSM logging", submitOnChange: true, required:false, defaultValue: false}
         if ((enableHSMToggle == true) && (isHSM == true)) {input "hsmLogLevel","enum", title: "Show HSM Alerts in log as?", required: false, multiple: false, options: logLevelOptions}
     }
+    displayFooter()
     }
 }
 
@@ -320,7 +315,7 @@ def modeHandler(evt) {
         ifTrace("modeHandler: Application is paused or disabled.")
     } else if (!settings.whenToLock?.contains("6") && settings.whenToLock?.contains("7") && modesLockStatus?.contains(location.mode) && (lock1?.currentValue("lock") == "unlocked") && ((contact?.currentValue("contact") == "closed") || (contact == null))) {
         lockDoor()
-    } else if (!settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("7") && hsmUnlockStatus?.contains(location.mode) && (lock1?.currentValue("lock") == "locked")) {
+    } else if (!settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("7") && modesUnlockStatus?.contains(location.mode) && (lock1?.currentValue("lock") == "locked")) {
         unlockDoor()
     }
 }
@@ -423,7 +418,7 @@ def lock1UnlockHandler(evt) {
         ifTrace("lock1UnlockHandler: Application is paused or disabled.")
     } else if (!settings.whenToLock?.contains("6") && settings.whenToUnlock?.contains("3") && (fireMedical?.currentValue("smokeSensor") == "detected")) {
         // Keeping door unlocked until the sensor clears.
-    } else if (settings.whenToUnlock?.contains("6")) {
+    } else if (settings.whenToLock?.contains("6")) {
         // Locking is disabled. Doing nothing.
         if ((notifyOnFailure == true) && failureNotificationDevices && settings.failureNotifications?.contains("6")) {sendFailureNotification("Lock triggered while Preventing unlock under any circumstances was enabled")}
     } else if (settings.whenToLock?.contains("0")) {lockDoor()}
@@ -457,7 +452,7 @@ def contactContactHandler(evt) {
     
     // Device Handler Action
     if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {
-        ifTrace("doorHandler: Application is paused or disabled.")
+        ifTrace("contactContactHandler: Application is paused or disabled.")
     } else if ((evt.value == "closed") && !settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("3") && (fireMedical?.currentValue("smokeSensor") == "detected") && (lock1?.currentValue("lock") == "locked")) {
         // Performing fast unlock if locked and unlocking door if locked
         countUnlock = maxRetriesUnlock
@@ -471,7 +466,7 @@ def contactContactHandler(evt) {
     } else if ((evt.value == "open") && !settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("5") && (lock1.currentValue("lock") == "locked")) {
         ifDebug("Unlock and refresh if known state is out of sync with reality.")
         if ((notifyOnFailure == true) && failureNotificationDevices && settings.failureNotifications?.contains("5")) {sendFailureNotification("State sync fix triggered")}
-        ifTrace("doorHandler: Door was opend while lock was locked. Performing a fast unlock in case and device refresh to get current state.")
+        ifTrace("contactContactHandler: Door was opend while lock was locked. Performing a fast unlock in case and device refresh to get current state.")
         def countUnlock = maxRetriesUnlock
         lock1.unlock()
         unschedule(checkUnlockedStatus)
@@ -1118,4 +1113,9 @@ def getVariableInfo() {
         log.info "state.unlockPresenceStatus = ${state.unlockPresenceStatus}"
         log.info "state.unlockPresenceBatteryStatus = ${state.unlockPresenceBatteryStatus}"
     }
+}
+def displayFooter(){
+	section() {
+		paragraph "<div style='color:#1A77C9;text-align:center'>Auto Lock<br><a href='https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=3MPZ3GU5XL8RS&item_name=Hubitat+Development&currency_code=USD' target='_blank'><img src='https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_37x23.jpg' border='0' alt='PayPal Logo'></a><br>Buy me a beer!</div>"
+	}       
 }
