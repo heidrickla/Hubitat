@@ -10,7 +10,7 @@ import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.30"
+	state.version = "1.1.31"
 }
 
 definition(
@@ -28,9 +28,9 @@ definition(
 preferences {
     page(name: "mainPage")
     page(name: "timeIntervalInput", title: "Only during a certain time") {
-		section {
-			input "starting", "time", title: "Starting", required: false
-			input "ending", "time", title: "Ending", required: false
+        section {
+            input "starting", "time", title: "Starting", required: false
+            input "ending", "time", title: "Ending", required: false
         }
     }
 }
@@ -48,7 +48,6 @@ def mainPage() {
           getVariableInfo}
       app.updateSetting("variableInfo",[value:"false",type:"bool"])
       input "detailedInstructions", "bool", title: "Enable detailed instructions?", submitOnChange: true, required: false, defaultValue: false
-      
     }
     section("") {
         if ((state.thisName == null) || (state.thisName == "null <span style=color:white> </span>")) {state.thisName = "Enter a name for this app."}
@@ -344,7 +343,6 @@ def enableHSMHandler(evt) {
     if (evt.value == "on") {app.updateSetting("enableHSMToggle",[value:"true",type:"bool"])
     } else if (evt.value == "off") {app.updateSetting("enableHSMToggle",[value:"false",type:"bool"])}
 
-    
     // Device Handler Action
     
 }
@@ -429,6 +427,7 @@ def lock1BatteryHandler(evt) {
         state.lock1BatteryStatus = "Battery: [${evt.value}%]"
     } else if (lock1?.currentValue("battery") != null) {state.lock1BatteryStatus = "Battery: [${lock1.currentValue("battery")}%]"
     } else if (lock1?.latestValue("battery") != null) {state.lock1BatteryStatus = "Battery: [${lock1.latestValue("battery")}%]"
+    } else if (lock1?.currentBattery != null) {state.lock1BatteryStatus = "Battery: [${lock1.currentBattery}%]"
     } else {state.lock1BatteryStatus = " "
         if (evt.value != null) {log.warn "${evt.value}"}
     }
@@ -479,13 +478,14 @@ def contactContactHandler(evt) {
 def contactBatteryHandler(evt) {
     // Device Status
     if (evt.value != null) {ifTrace("contactBatterytHandler: ${evt.value}")
-        state.contactBatteryStatus = "Battery: [${evt.value}]"
+        state.contactBatteryStatus = "Battery: [${evt.value}%]"
     } else if (contact?.currentValue("battery") != null) {state.contactBatteryStatus = "Battery: [${contact.currentValue("battery")}%]"
     } else if (contact?.latestValue("battery") != null) {state.contactBatteryStatus = "Battery: [${contact.latestValue("battery")}%]"
+    } else if (contact?.currentBattery != null) {state.contactBatteryStatus = "Battery: [${contact.currentBattery}%]"
     } else {state.contactBatteryStatus = " "
         if (evt.value != null) {log.warn "${evt.value}"}
     }
-    if ((evt.value != null) && lowBatteryDevicesToNotifyFor.contains("2") && (notifyOnLowBattery == true) && (lowBatteryAlertThreshold != null) && (lowBatteryAlertThreshold < 0) && (evt.value < ${lowBatteryAlertThreshold})) {lowBatteryDevicesToNotifyFor.deviceNotification("${contact} battery is ${evt.value}.")}
+    if ((evt.value != null) && lowBatteryDevicesToNotifyFor?.contains("2") && (notifyOnLowBattery == true) && (lowBatteryAlertThreshold != null) && (lowBatteryAlertThreshold < 0) && (evt.value < ${lowBatteryAlertThreshold})) {lowBatteryDevicesToNotifyFor.deviceNotification("${contact} battery is ${evt.value}.")}
 
     // Device Handler Action
 }
@@ -511,9 +511,10 @@ def lockPresenceHandler(evt) {
 def lockPresenceBatteryHandler(evt) {
     // Device Status
     if (evt.value != null) {ifTrace("lockPresenceBatteryHandler: ${evt.value}")
-        state.unlockPresenceBatteryStatus = "Battery: [${evt.value}]"
+        state.unlockPresenceBatteryStatus = "Battery: [${evt.value}%]"
     } else if (lockPresence?.currentValue("battery") != null) {state.lockPresenceBatteryStatus = "Battery: [${lockPresence.currentValue("battery")}]"
-    } else if (lockPresence?.latestValue("battery") != null) {state.lockPresenceBatteryStatus = "Battery: [${lockPresence.latestValue("battery")}]"                                                                                                      
+    } else if (lockPresence?.latestValue("battery") != null) {state.lockPresenceBatteryStatus = "Battery: [${lockPresence.latestValue("battery")}]"
+    } else if (lockPresence?.currentBattery != null) {state.lockPresenceBatteryStatus = "Battery: [${lockPresence.currentBattery}]"
     } else {(state.lockPresenceBatteryStatus = " ")}
     
     // Device Handler Action
@@ -540,9 +541,10 @@ def unlockPresenceHandler(evt) {
 def unlockPresenceBatteryHandler(evt) {
     // Device Status
     if (evt.value != null) {ifTrace("unlockPresenceBatteryHandler: ${evt.value}")
-        state.unlockPresenceBatteryStatus = "Battery: [${evt.value}]"
+        state.unlockPresenceBatteryStatus = "Battery: [${evt.value}%]"
     } else if (unlockPresence?.currentValue("battery") != null) {state.unlockPresenceBatteryStatus = "Battery: [${unlockPresence.currentValue("battery")}]"
-    } else if (unlockPresence?.latestValue("battery") != null) {state.unlockPresenceBatteryStatus = "Battery: [${unlockPresence.latestValue("battery")}]"                                                                                                      
+    } else if (unlockPresence?.latestValue("battery") != null) {state.unlockPresenceBatteryStatus = "Battery: [${unlockPresence.latestValue("battery")}]"    
+    } else if (unlockPresence?.currentBattery != null) {state.unlockPresenceBatteryStatus = "Battery: [${unlockPresence.currentBattery}]"
     } else {(state.unlockPresenceBatteryStatus = " ")}
     
     // Device Handler Action
@@ -577,9 +579,10 @@ def fireMedicalHandler(evt) {
 def fireMedicalBatteryHandler(evt) {
     // Device Status
     if (evt.value != null) {ifTrace("fireMedicalBatteryHandler: ${evt.value}")
-        state.fireMedicalBatteryStatus = "Battery: [${fireMedical.currentValue("battery")}]"
+        state.fireMedicalBatteryStatus = "Battery: [${fireMedical.currentValue("battery")}%]"
     } else if ((fireMedical?.currentValue("battery") != null)) {state.fireMedicalBatteryStatus = "Battery: [${fireMedical.currentValue("battery")}]"
     } else if (fireMedical?.latestValue("battery") != null) {state.fireMedicalBatteryStatus = "Battery: [${fireMedical.latestValue("battery")}]"
+    } else if ((fireMedical?.currentBattery != null)) {state.fireMedicalBatteryStatus = "Battery: [${fireMedical.currentBattery}]"
     } else {(state.fireMedicalBatteryStatus = " ")}
     if ((evt.value != null) && lowBatteryDevicesToNotifyFor.contains("3") && (notifyOnLowBattery == true) && (lowBatteryAlertThreshold != null) && (lowBatteryAlertThreshold < 0) && (evt.value < ${lowBatteryAlertThreshold})) {lowBatteryDevicesToNotifyFor.deviceNotification("${contact} battery is ${evt.value}.")}
 
@@ -833,7 +836,6 @@ def sendFailureNotification(msg) {
         failureNotificationDevices.deviceNotification(pushMessage)
     }
 }
-                
 
 //Label Updates
 void updateLabel() {
@@ -866,7 +868,6 @@ void updateLabel() {
     if ((state?.paused == true) || (state?.disabled == true)) {state.pausedOrDisabled = true} else {state.pausedOrDisabled = false}
     app.updateLabel("${state.thisName} ${appStatus}")
 }
-
 
 //Enable, Resume, Pause button
 def appButtonHandler(btn) {
@@ -1113,6 +1114,7 @@ def getVariableInfo() {
         log.info "state.unlockPresenceBatteryStatus = ${state.unlockPresenceBatteryStatus}"
     }
 }
+
 def displayFooter(){
 	section() {
 		paragraph "<div style='color:#1A77C9;text-align:center'>Auto Lock<br><a href='https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=3MPZ3GU5XL8RS&item_name=Hubitat+Development&currency_code=USD' target='_blank'><img src='https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_37x23.jpg' border='0' alt='PayPal Logo'></a><br>Buy me a beer!</div>"
