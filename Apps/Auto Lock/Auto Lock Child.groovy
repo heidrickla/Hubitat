@@ -10,7 +10,7 @@ import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.31"
+	state.version = "1.1.32"
 }
 
 definition(
@@ -71,17 +71,22 @@ def mainPage() {
         if (settings.whenToLock?.contains("4")) {input "deviceActivationToggle", "bool", title: "Invert Switch Triggered Action: ", submitOnChange: true, required: false, multiple: false, defaultValue: false}
         input "whenToLock", "enum", title: "When to lock?  Default: '(Lock when lock unlocks)'", options: whenToLockOptions, defaultValue: ["0"], required: true, multiple: true, submitOnChange:true
         if (detailedInstructions == true) {paragraph "Use seconds instead changes the timer used in the application to determine if the delay before performing locking actions will be based on minutes or seconds.  This will update the label on the next option to show its' setting."}
-        input "minSecLock", "bool", title: "Use seconds instead?", submitOnChange:true, required: true, defaultValue: false
-        if (detailedInstructions == true) {paragraph "This value is used to determine the delay before locking actions occur. The minutes/seconds are determined by the Use seconds instead toggle."}
-        if (minSecLock == false) {input "durationLock", "number", title: "Lock it how many minutes later?", required: true, submitOnChange: false, defaultValue: 10}
-        if (minSecLock == true) {input "durationLock", "number", title: "Lock it how many seconds later?", required: true, submitOnChange: false, defaultValue: 10}
-        if (detailedInstructions == true) {paragraph "Enable retries if lock fails to change state enables all actions that try to lock the door up to the maximum number of retries.  If all retry attempts fail, a failure notice will appear in the logs.  Turning this toggle off causes any value in the Maximum number of retries to be ignored."}
-        input "retryLock", "bool", title: "Enable retries if lock fails to change state.", required: false, submitOnChange: false, defaultValue: true
+        if (settings.whenToLock?.contains("7")) {input name: "modesLockStatus", type: "mode", title: "Lock when entering these modes",required: false, multiple: true, submitOnChange: true}
+        if (settings.whenToLock?.contains("7")) {input name: "enablePerModeLockDelay", type: "bool", title: "Enable per mode lock delay",required: false, defaultValue: false, submitOnChange: true
+            if (enablePerModeLockDelay == true) {input "minSecLock", "bool", title: "Use seconds instead?", submitOnChange:true, required: true, defaultValue: false
+                perModeLockDelay()
+            }
+        }
+        if (enablePerModeLockDelay == false) {input "minSecLock", "bool", title: "Use seconds instead?", submitOnChange:true, required: true, defaultValue: false}
+        if ((enablePerModeLockDelay == false) && (detailedInstructions == true)) {paragraph "This value is used to determine the delay before locking actions occur. The minutes/seconds are determined by the Use seconds instead toggle."}
+        if ((enablePerModeLockDelay == false) && (minSecLock == false)) {input "durationLock", "number", title: "Lock it how many minutes later?", required: true, submitOnChange: true, defaultValue: 10}
+        if ((enablePerModeLockDelay == false) && (minSecLock == true)) {input "durationLock", "number", title: "Lock it how many seconds later?", required: true, submitOnChange: true, defaultValue: 10}
+        if ((retryLock == true) && (detailedInstructions == true)) {paragraph "Enable retries if lock fails to change state enables all actions that try to lock the door up to the maximum number of retries.  If all retry attempts fail, a failure notice will appear in the logs.  Turning this toggle off causes any value in the Maximum number of retries to be ignored."}
+        input "retryLock", "bool", title: "Enable retries if lock fails to change state.", required: false, submitOnChange: true, defaultValue: true
         if (detailedInstructions == true) {paragraph "Maximum number of retries is used to determine the limit of times that a locking action can attempt to perform an action.  This option is to prevent the lock from attempting over and over until the batteries are drained."}
-        input "maxRetriesLock", "number", title: "Maximum number of retries?", required: false, submitOnChange: false, defaultValue: 3
-        if (detailedInstructions == true) {paragraph "Delay between retries in second(s) provides the lock enough time to perform the locking action.  If you set this too low  and it send commands to the lock before it completes its' action, the commands will be ignored.  Three to five seconds is usually enough time for the lock to perform any actions and report back its' status."}
-        input "delayBetweenRetriesLock", "number", title: "Delay between retries in second(s)?", require: false, submitOnChange: false, defaultValue: 5
-        if (settings.whenToLock?.contains("7")) {input name: "modesLockStatus", type: "mode", title: "Lock when entering one of these modes",required: false, multiple: true, submitOnChange: false}
+        if (retryLock == true) {input "maxRetriesLock", "number", title: "Maximum number of retries?", required: false, submitOnChange: false, defaultValue: 3}
+        if ((retryLock == true) && (detailedInstructions == true)) {paragraph "Delay between retries in second(s) provides the lock enough time to perform the locking action.  If you set this too low  and it send commands to the lock before it completes its' action, the commands will be ignored.  Three to five seconds is usually enough time for the lock to perform any actions and report back its' status."}
+        if (retryLock == true) {input "delayBetweenRetriesLock", "number", title: "Delay between retries in second(s)?", require: false, submitOnChange: false, defaultValue: 5}
         if (settings.whenToLock?.contains("5")) {input "hsmLockStatus","enum", title: "Lock when HSM enters these modes",required: false, multiple: true, submitOnChange: false, options: hsmStateOptions}
         if (enableHSMToggle == true) {input "hsmCommandsLock","enum", title: "Set HSM status when Locked?",required: false, multiple: false, submitOnChange: false, options: hsmCommandOptions}
     }
@@ -100,17 +105,22 @@ def mainPage() {
         input "whenToUnlock", "enum", title: "When to unlock?  Default: '(Prevent unlocking under any circumstances)'", options: whenToUnlockOptions, defaultValue: ["6"], required: true, multiple: true, submitOnChange:true
         if (!settings.whenToUnlock?.contains("6")) {
         if (detailedInstructions == true) {paragraph "Use seconds instead changes the timer used in the application to determine if the delay before performing unlocking actions will be based on minutes or seconds. This will update the label on the next option to show its' setting."}
-        input "minSecUnlock", "bool", title: "Use seconds instead?", submitOnChange: true, required: true, defaultValue: true
-        if (detailedInstructions == true) {paragraph "This value is used to determine the delay before unlocking actions occur. The minutes/seconds are determined by the Use seconds instead toggle."}
-        if (minSecUnlock == false) {input "durationUnlock", "number", title: "Unlock it how many minutes later?", submitOnChange: false, required: true, defaultValue: 2}
-        if (minSecUnlock == true) {input "durationUnlock", "number", title: "Unlock it how many seconds later?", submitOnChange: false, required: true, defaultValue: 2}
-        if (detailedInstructions == true) {paragraph "Enable retries if unlock fails to change state enables all actions that try to unlock the door up to the maximum number of retries.  If all retry attempts fail, a failure notice will appear in the logs.  Turning this toggle off causes any value in the Maximum number of retries to be ignored."}
-        input "retryUnlock", "bool", title: "Enable retries if unlock fails to change state.", submitOnChange: false, require: false, defaultValue: true
-        if (detailedInstructions == true) {paragraph "Maximum number of retries is used to determine the limit of times that an unlocking action can attempt to perform an action.  This option is to prevent the lock from attempting over and over until the batteries are drained."}
-        input "maxRetriesUnlock", "number", title: "Maximum number of retries? While door is open it will wait for it to close.", submitOnChange: false, required: false, defaultValue: 3
-        if (detailedInstructions == true) {paragraph "Delay between retries in second(s) provides the lock enough time to perform the unlocking action.  If you set this too low and it send commands to the lock before it completes its' action, the commands will be ignored.  Three to five seconds is usually enough time for the lock to perform any actions and report back its' status."}
-        input "delayBetweenRetriesUnlock", "number", title: "Delay between retries in second(s)?", submitOnChange: false, require: false, defaultValue: 3
-        if (settings.whenToUnlock?.contains("7")) {input name: "modesUnlockStatus", type: "mode", title: "Unlock when entering one of these modes",required: false, multiple: true, submitOnChange: false}
+        if (settings.whenToUnlock?.contains("7")) {input name: "modesUnlockStatus", type: "mode", title: "Unlock when entering these modes",required: false, multiple: true, submitOnChange: true}
+        if (settings.whenToUnlock?.contains("7")) {input name: "enablePerModeUnlockDelay", type: "bool", title: "Enable per mode unlock delay",required: false, defaultValue: false, submitOnChange: true
+            if (enablePerModeUnlockDelay == true) {input "minSecUnlock", "bool", title: "Use seconds instead?", submitOnChange:true, required: true, defaultValue: false
+                perModeUnlockDelay()
+            }
+        }
+        if (enablePerModeUnlockDelay == false) {input "minSecUnlock", "bool", title: "Use seconds instead?", submitOnChange:true, required: true, defaultValue: false}
+        if ((enablePerModeUnlockDelay == false) && (detailedInstructions == true)) {paragraph "This value is used to determine the delay before unlocking actions occur. The minutes/seconds are determined by the Use seconds instead toggle."}
+        if ((enablePerModeUnlockDelay == false) && (minSecUnlock == false)) {input "durationUnlock", "number", title: "Unlock it how many minutes later?", submitOnChange: false, required: true, defaultValue: 2}
+        if ((enablePerModeUnlockDelay == false) && (minSecUnlock == true)) {input "durationUnlock", "number", title: "Unlock it how many seconds later?", submitOnChange: false, required: true, defaultValue: 2}
+        if ((retryUnlock == true) && (detailedInstructions == true)) {paragraph "Enable retries if unlock fails to change state enables all actions that try to unlock the door up to the maximum number of retries.  If all retry attempts fail, a failure notice will appear in the logs.  Turning this toggle off causes any value in the Maximum number of retries to be ignored."}
+        input "retryUnlock", "bool", title: "Enable retries if unlock fails to change state.", submitOnChange: true, require: false, defaultValue: true
+        if ((retryUnlock == true) && (detailedInstructions == true)) {paragraph "Maximum number of retries is used to determine the limit of times that an unlocking action can attempt to perform an action.  This option is to prevent the lock from attempting over and over until the batteries are drained."}
+        if (retryUnlock == true) {input "maxRetriesUnlock", "number", title: "Maximum number of retries? While door is open it will wait for it to close.", submitOnChange: false, required: false, defaultValue: 3}
+        if ((retryUnlock == true) && (detailedInstructions == true)) {paragraph "Delay between retries in second(s) provides the lock enough time to perform the unlocking action.  If you set this too low and it send commands to the lock before it completes its' action, the commands will be ignored.  Three to five seconds is usually enough time for the lock to perform any actions and report back its' status."}
+        if (retryUnlock == true) {input "delayBetweenRetriesUnlock", "number", title: "Delay between retries in second(s)?", submitOnChange: false, require: false, defaultValue: 3}
         if (settings.whenToUnlock?.contains("0")) {input "hsmUnlockStatus","enum", title: "Unlock when HSM enters these modes",required: false, multiple: true, submitOnChange: false, options: hsmStateOptions}
         if (enableHSMToggle == true) {input "hsmCommandsUnlock","enum", title: "Set HSM when Unlocked?",required: false, multiple: false, submitOnChange: false, options: hsmCommandOptions}
         }
@@ -313,6 +323,13 @@ def modeHandler(evt) {
     if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {
         ifTrace("modeHandler: Application is paused or disabled.")
     } else if (!settings.whenToLock?.contains("6") && settings.whenToLock?.contains("7") && modesLockStatus?.contains(location.mode) && (lock1?.currentValue("lock") == "unlocked") && ((contact?.currentValue("contact") == "closed") || (contact == null))) {
+        if (settings.whenToLock?.contains("7") && (enablePerModeLockDelay == true)) {
+            modesLockStatus.each { it ->
+                if (it == location.mode) {
+                    app.updateSetting("durationLock",[value: ${it},type:"number"])
+                }
+            }
+        }
         lockDoor()
     } else if (!settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("7") && modesUnlockStatus?.contains(location.mode) && (lock1?.currentValue("lock") == "locked")) {
         unlockDoor()
@@ -389,7 +406,6 @@ def lock1LockHandler(evt) {
     } else if ((lock1?.currentValue("lock") == "locked") && (contact?.currentValue("contact") == "closed") || (contact == null)) {
         unschedule(lockDoor)                  // ...we don't need to lock it later.
     }
-
 }
 
 def lock1UnlockHandler(evt) {
@@ -930,6 +946,32 @@ def setPauseButtonName() {
 }
 
 // Application Page settings
+def perModeLockDelay() {
+    if (settings.whenToLock?.contains("7") && (enablePerModeLockDelay == true) && modesLockStatus) {
+        modesLockStatus.each { it ->
+            variableName = ("modeDurationLock"+"${it}")
+            input "${variableName}", "number", title: "${it} mode lock delay:", required: false, defaultValue: 10, submitOnChange: true
+            if (it == location.mode) {
+                log.debug "${variableName}"
+                variableValue = app.getSetting("${variableName}")
+                app.updateSetting("durationLock",[value: variableValue, type: "number"])}
+        }
+    }
+}
+
+def perModeUnlockDelay() {
+    if (settings.whenToUnlock?.contains("7") && (enablePerModeUnlockDelay == true) && modesUnlockStatus) {
+        modesUnlockStatus.each { it ->
+            variableName = ("modeDurationUnlock"+"${it}")
+            input "${variableName}", "number", title: "${it} mode unlock delay:", required: false, defaultValue: 10, submitOnChange: true
+            if (it == location.mode) {
+                log.debug "${variableName}"
+                variableValue = app.getSetting("${variableName}")
+                app.updateSetting("durationUnlock",[value: variableValue, type: "number"])}
+        }
+    }
+}
+
 def sendHsmCommandsLock() {sendLocationEvent(name: "hsmSetArm", value: "${hsmCommandsLock.collect { it.keySet()[0] }}")}    //Send HSM Commands When Locking
 def sendHsmCommandsUnlock() {sendLocationEvent(name: "hsmSetArm", value: "${hsmCommandsLock.collect { it.keySet()[0] }}")}    //Send HSM Commands When Unlocking
 private hideLockOptionsSection() {(minSecLock || durationLock || retryLock || maxRetriesLock || delayBetweenRetriesLock) ? false : true}
