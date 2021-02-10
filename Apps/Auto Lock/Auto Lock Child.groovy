@@ -952,7 +952,6 @@ def perModeLockDelay() {
             variableName = ("modeDurationLock"+"${it}")
             input "${variableName}", "number", title: "${it} mode lock delay:", required: false, defaultValue: 10, submitOnChange: true
             if (it == location.mode) {
-                log.debug "${variableName}"
                 variableValue = app.getSetting("${variableName}")
                 app.updateSetting("durationLock",[value: variableValue, type: "number"])}
         }
@@ -965,7 +964,6 @@ def perModeUnlockDelay() {
             variableName = ("modeDurationUnlock"+"${it}")
             input "${variableName}", "number", title: "${it} mode unlock delay:", required: false, defaultValue: 10, submitOnChange: true
             if (it == location.mode) {
-                log.debug "${variableName}"
                 variableValue = app.getSetting("${variableName}")
                 app.updateSetting("durationUnlock",[value: variableValue, type: "number"])}
         }
