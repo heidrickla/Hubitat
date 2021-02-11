@@ -10,7 +10,7 @@ import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.32"
+	state.version = "1.1.33"
 }
 
 definition(
@@ -128,7 +128,7 @@ def mainPage() {
     section(title: "Only Run When:", hideable: true, hidden: hideOptionsSection()) {
         def timeLabel = timeIntervalLabel()
         if (detailedInstructions == true) {paragraph "Switch to Enable and Disable this app prevents the app from performing any actions other than status updates for the lock and contact sensor state and battery state on the app page."}
-        input "disabledSwitch", "capability.switch", title: "Switch to Enable and Disable this app ${disabledSwitchStatus}", submitOnChange: false, required: false, multiple: false
+        input "disabledSwitch", "capability.switch", title: "Switch to Enable and Disable this app ${state.disabledSwitchStatus}", submitOnChange: false, required: false, multiple: false
         if (detailedInstructions == true) {paragraph "Only during a certain time is used to restrict the app to running outside of the assigned times. You can use this to prevent false presence triggers while your sleeping from unlocking the door."}
         href "timeIntervalInput", title: "Only during a certain time", description: timeLabel ?: "Tap to set", state: timeLabel ? "complete" : null
         if (detailedInstructions == true) {paragraph "Only on certain days of the week restricts the app from running outside of the assigned days. Useful if you work around the yard frequently on the weekends and want to keep your door unlocked and just want the app during the week."}
@@ -136,7 +136,7 @@ def mainPage() {
         if (detailedInstructions == true) {paragraph "Only when mode is allows you to prevent the app from running outside of the specified modes. This is useful if you have a party mode and want the lock from re-locking on you while company is over.  This could also be used like the Only during a certain time mode to prevent faluse triggers at night for instance."}
         input "modes", "mode", title: "Only when mode is", multiple: true, required: false, submitOnChange:false
         input "enableHSMToggle", "bool", title: "Enable HSM Actions", required:false, submitOnChange: true, defaultValue: false
-        input "enableHSMSwitch", "capability.switch", title: "Switch to Enable HSM Actions: (Optional) ${enableHSMSwitchStatus}", required: false, multiple: false, submitOnChange: true
+        input "enableHSMSwitch", "capability.switch", title: "Switch to Enable HSM Actions: (Optional) ${state.enableHSMSwitchStatus}", required: false, multiple: false, submitOnChange: true
         if (enableHSMToggle == true) {input "whenToLockHSM", "enum", title: "Only lock when HSM status is?", options: hsmStateOptions, required: false, multiple: true, submitOnChange:false}
         if (enableHSMToggle == true) {input "whenToUnlockHSM", "enum", title: "Only unlock when HSM status is?", options: hsmStateOptions, required: false, multiple: true, submitOnChange:false}
     }
@@ -261,6 +261,7 @@ def installed() {
     if (state.fireMedicalBatteryStatus == null) {state.fireMedicalBatteryStatus = " "}
     if (state.deviceActivationSwitchStatus == null) {state.deviceActivationSwitchStatus = " "}
     if (state.disabledSwitchStatus == null) {state.disabledSwitchStatus = " "}
+    if (state.enableHSMSwitchStatus == null) {state.enableHSMSwitchStatus = " "}
     initialize()
 }
 
@@ -282,6 +283,7 @@ def updated() {
     if (state.fireMedicalBatteryStatus == null) {state.fireMedicalBatteryStatus = " "}
     if (state.deviceActivationSwitchStatus == null) {state.deviceActivationSwitchStatus = " "}
     if (state.disabledSwitchStatus == null) {state.disabledSwitchStatus = " "}
+    if (state.enableHSMSwitchStatus == null) {state.enableHSMSwitchStatus = " "}
     unsubscribe()
     unschedule()
     initialize()
@@ -770,7 +772,7 @@ def checkLockedStatus() {
         countLock = maxRetriesLock
         countLock = (countLock - 1)
         if ((lock1.currentValue("lock") == "locked")) {ifTrace("checkLockedStatus: The door was locked successfully")
-        } else if ((countLock > -1) && (lock1.currentValue("lock") != "locked")) {runIn(delayBetweenRetriesLock, retryLockingCommand)
+        } else if ((countLock > -1) && (lock1.currentValue("lock") != "locked")) {runIn(delayBetweenRetriesLock, retryLockingCommand,[data: countLock])
         } else {
             ifInfo("Maximum retries exceeded. Giving up on locking door.")
             if ((notifyOnEvent == true) && eventNotificationDevices && settings.eventNotifications?.contains("1")) {sendEventNotification("Maximum Lock Retries Exceeded.")}
@@ -795,7 +797,7 @@ def checkUnlockedStatus() {
         countUnlock = maxRetriesUnlock
         countUnlock = (countUnlock - 1)
         if ((lock1.currentValue("lock") == "unlocked")) {ifTrace("checkUnlockedStatus: The door was unlocked successfully")
-        } else if ((countUnlock > -1) && (lock1.currentValue("lock") != "unlocked")) {runIn(delayBetweenRetriesUnlock, retryUnlockingCommand)
+        } else if ((countUnlock > -1) && (lock1.currentValue("lock") != "unlocked")) {runIn(delayBetweenRetriesUnlock, retryUnlockingCommand,[data: countUnlock])
         } else {
             ifInfo("Maximum retries exceeded. Giving up on unlocking door.")
             if ((notifyOnEvent == true) && eventNotificationDevices && settings.eventNotifications?.contains("2")) {sendEventNotification("Maximum Unlock Retries Exceeded.")}
@@ -804,7 +806,7 @@ def checkUnlockedStatus() {
     updateLabel()
 }
 
-def retryLockingCommand() {
+def retryLockingCommand(long countLock) {
     ifTrace("retryLockingCommand")
     if (lock1?.currentValue("lock") == "locked") {
         state.status = "(Locked)"
@@ -814,13 +816,13 @@ def retryLockingCommand() {
     } else if ((retryLock == true) && (lock1.currentValue("lock") != "locked") && !settings.whenToLock?.contains("6")) {
         lock1.lock()
         countLock = (countLock - 1)
-        if (countLock > -1) {runIn(delayBetweenRetriesLock, retryLockingCommand)}
+        if (countLock > -1) {runIn(delayBetweenRetriesLock, retryLockingCommand(countLock))}
         if ((notifyOnFailure == true) && failureNotificationDevices && settings.failureNotifications?.contains("1") && (countLock < 0)) {sendFailureNotification("Maximum lock retries reached.")}
     } else {ifTrace("retryLockingCommand: retryLock = ${retryLock} - Doing nothing.")}
     updateLabel()
 }
 
-def retryUnlockingCommand() {
+def retryUnlockingCommand(long countUnlock) {
     ifTrace("retryUnlockingCommand")
     if (lock1?.currentValue("lock") == "unlocked") {
         ifTrace("retryUnlockingCommand: The door was unlocked successfully")
@@ -829,7 +831,7 @@ def retryUnlockingCommand() {
     } else if ((retryUnlock == true) && (lock1?.currentValue("lock") != "unlocked") && !settings.whenToUnlock?.contains("6")) {
         lock1.unlock()
         countUnlock = (countUnlock - 1)
-        if (countUnlock > -1) {runIn(delayBetweenRetriesUnlock, retryUnlockingCommand)}
+        if (countUnlock > -1) {runIn(delayBetweenRetriesUnlock, retryUnlockingCommand(countUnlock))}
         if ((notifyOnFailure == true) && failureNotificationDevices && (settings.failureNotifications?.contains("2")) && (countUnlock < 0)) {sendFailureNotification("Maximum unlock retries reached.")}
     } else {ifTrace("retryUnlockingCommand: retryUnlock = ${retryUnlock} - Doing nothing.")}
     updateLabel()
@@ -952,6 +954,7 @@ def perModeLockDelay() {
             variableName = ("modeDurationLock"+"${it}")
             input "${variableName}", "number", title: "${it} mode lock delay:", required: false, defaultValue: 10, submitOnChange: true
             if (it == location.mode) {
+                log.debug "${variableName}"
                 variableValue = app.getSetting("${variableName}")
                 app.updateSetting("durationLock",[value: variableValue, type: "number"])}
         }
@@ -964,6 +967,7 @@ def perModeUnlockDelay() {
             variableName = ("modeDurationUnlock"+"${it}")
             input "${variableName}", "number", title: "${it} mode unlock delay:", required: false, defaultValue: 10, submitOnChange: true
             if (it == location.mode) {
+                log.debug "${variableName}"
                 variableValue = app.getSetting("${variableName}")
                 app.updateSetting("durationUnlock",[value: variableValue, type: "number"])}
         }
