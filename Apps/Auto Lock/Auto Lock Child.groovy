@@ -10,7 +10,7 @@ import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.34"
+	state.version = "1.1.35"
 }
 
 definition(
@@ -386,7 +386,9 @@ def lock1LockHandler(evt) {
     ifDebug("${evt.name} : ${evt.descriptionText}")
     if (evt.type == 'physical' && evt.descriptionText.endsWith('locked by keypad') && (notifyOnEvent == true) && eventNotificationDevices && settings.eventNotifications?.contains("1")) {sendEventNotification("Locked by keypad")
     } else if (evt.type == 'physical' && evt.descriptionText.contains('locked by code') && (notifyOnEvent == true) && eventNotificationDevices && settings.eventNotifications?.contains("1")) {sendEventNotification("Locked by code")
-    } else if (evt.type == 'physical' && evt.descriptionText.endsWith('locked by manual') && (notifyOnEvent == true) && eventNotificationDevices && settings.eventNotifications?.contains("1")) {sendEventNotification("Locked manually")}
+    } else if (evt.type == 'physical' && evt.descriptionText.endsWith('locked by manual') && (notifyOnEvent == true) && eventNotificationDevices && settings.eventNotifications?.contains("1")) {sendEventNotification("Locked manually")
+    } else if (evt.type == 'physical' && evt.descriptionText.endsWith('locked by thumb turn') && (notifyOnEvent == true) && eventNotificationDevices && settings.eventNotifications?.contains("1")) {sendEventNotification("Locked manually")
+    } else if (evt.type == 'physical' && evt.descriptionText.contains('locked by') && (notifyOnEvent == true) && eventNotificationDevices && settings.eventNotifications?.contains("1")) {sendEventNotification("${evt.descriptionText}")}
     
     if (evt.type == 'digital' && evt.descriptionText.endsWith('locked') && (notifyOnEvent == true) && eventNotificationDevices && settings.eventNotifications?.contains("3")) {sendEventNotification("Locked by automation")
 	} else if (evt.type == 'digital' && evt.descriptionText.contains('locked by code') && (notifyOnEvent == true) && eventNotificationDevices && settings.eventNotifications?.contains("3")) {sendEventNotification("Locked by code")}
@@ -429,7 +431,9 @@ def lock1UnlockHandler(evt) {
     ifDebug("${evt.name} : ${evt.descriptionText}")
     if (evt.type == 'physical' && evt.descriptionText.endsWith('unlocked by keypad') && (notifyOnEvent == true) && eventNotificationDevices && settings.eventNotifications?.contains("2")) {sendEventNotification("Unlocked by keypad")
 	} else if (evt.type == 'physical' && evt.descriptionText.contains('unlocked by code') && (notifyOnEvent == true) && eventNotificationDevices && settings.eventNotifications?.contains("2")) {sendEventNotification("Unlocked by code")
-	} else if (evt.type == 'physical' && evt.descriptionText.endsWith('unlocked by manual') && (notifyOnEvent == true) && eventNotificationDevices && settings.eventNotifications?.contains("2")) {sendEventNotification("Unlocked manually")}
+	} else if (evt.type == 'physical' && evt.descriptionText.endsWith('unlocked by manual') && (notifyOnEvent == true) && eventNotificationDevices && settings.eventNotifications?.contains("2")) {sendEventNotification("Unlocked manually")
+    } else if (evt.type == 'physical' && evt.descriptionText.endsWith('unlocked by thumb turn') && (notifyOnEvent == true) && eventNotificationDevices && settings.eventNotifications?.contains("2")) {sendEventNotification("Unlocked manually")
+    } else if (evt.type == 'physical' && evt.descriptionText.contains('unlocked by') && (notifyOnEvent == true) && eventNotificationDevices && settings.eventNotifications?.contains("2")) {sendEventNotification("${evt.descriptionText}")}
     
     if (evt.type == 'digital' && evt.descriptionText.endsWith('unlocked') && (notifyOnEvent == true) && eventNotificationDevices && settings.eventNotifications?.contains("4")) {sendEventNotification("Unlocked by automation")
 	} else if (evt.type == 'digital' && evt.descriptionText.contains('unlocked by code') && (notifyOnEvent == true) && eventNotificationDevices && settings.eventNotifications?.contains("4")) {sendEventNotification("Unlocked by code")}
