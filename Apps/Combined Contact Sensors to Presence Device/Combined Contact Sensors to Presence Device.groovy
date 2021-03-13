@@ -33,6 +33,7 @@ def mainPage() {
         section("<b>Create a virtual presence sensor from one or more contact sensor(s).</b>") {
             paragraph "Presence will update from present to not present when the contact is open. It will update from not present to present when the contact closes."
 			input "contactSensors", "capability.contactSensor", title: "Select Contact Sensors", submitOnChange: true, required: true, multiple: true
+            paragraph "If any sensors are closed then it will set the presence to present."
             input name: "Create", type: "button", title: state.createCombinedSensorButtonName, submitOnChange:true, width: 5
     	}
         displayFooter()
@@ -59,10 +60,10 @@ def initialize() {
 def handler(evt) {
 	def present = false
     contactSensors.each { contactSensor ->
-		if (contactSensor.currentValue("contact") == "closed") {present = true}
+        if (contactSensor.currentValue("contact") == "closed") {present = true}
     }
-    def previousPresent = (getChildDevice("CombinedContact_${app.id}")).currentValue("contact")
-	if (closed) {(getChildDevice("CombinedContact_${app.id}")).arrived()}
+    def previousPresent = (getChildDevice("CombinedContact_${app.id}")).currentValue("presence")
+	if (present) {(getChildDevice("CombinedContact_${app.id}")).arrived()}
 	else {(getChildDevice("CombinedContact_${app.id}")).departed()}
 }
 
