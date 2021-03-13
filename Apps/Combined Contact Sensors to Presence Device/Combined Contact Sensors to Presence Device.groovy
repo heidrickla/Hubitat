@@ -29,8 +29,8 @@ preferences {
 
 def mainPage() {
 	return dynamicPage(name: "mainPage", title: "", install: true, uninstall: true) {
-        if(!state.AldInstalled) {
-            section("Hit Done to install Auto Lock App") {
+        if(!state.C2PInstalled) {
+            section("Hit Done to install Combined Contact Sensors to Presence Device App") {
         	}
         }
         else {
