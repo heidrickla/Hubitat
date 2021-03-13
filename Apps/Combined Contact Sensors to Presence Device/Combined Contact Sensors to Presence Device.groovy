@@ -28,13 +28,14 @@ preferences {
 }
 
 def mainPage() {
-	dynamicPage (name: "mainPage", title: "", install: true, uninstall: true) {
+    installed()
+    return dynamicPage (name: "mainPage", title: "", install: true, uninstall: true) {
         section("<b>Create a virtual presence sensor from one or more contact sensor(s).</b>") {
             paragraph "Presence will update from present to not present when the contact is open. It will update from not present to present when the contact closes."
-			input "contactSensors", "capability.presenceSensor", title: "Select Contact Sensors", submitOnChange: true, required: true, multiple: true
+			input "contactSensors", "capability.contactSensor", title: "Select Contact Sensors", submitOnChange: true, required: true, multiple: true
             input name: "Create", type: "button", title: state.createCombinedSensorButtonName, submitOnChange:true, width: 5
-            displayFooter()
     	}
+        displayFooter()
     }
 }
 
@@ -44,6 +45,7 @@ def installed() {
 }
 
 def updated() {
+    unsubscribe()
 	initialize()
     if (state?.created == null) {(state.created = false)}
 }
