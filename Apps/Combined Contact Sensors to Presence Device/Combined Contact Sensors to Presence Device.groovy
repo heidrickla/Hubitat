@@ -28,21 +28,12 @@ preferences {
 }
 
 def mainPage() {
-	return dynamicPage(name: "mainPage", title: "", install: true, uninstall: true) {
-        if(!state.C2PInstalled) {
-            section("Hit Done to install Combined Contact Sensors to Presence Device App") {
-        	}
-        }
-        else {
-        	section("<b>Create a new Auto Lock Instance.</b>") {
-            	app(name: "childApps", appName: "Combined Contact Sensors to Presence Device", namespace: "heidrickla", title: "Combined Contact Sensors to Presence Instance", multiple: true)
-        	}
-            section("<b>Create a virtual presence sensor from one or more contact sensor(s).</b>") {
-                paragraph "Presence will update from present to not present when the contact is open. It will update from not present to present when the contact closes."
-			    input "contactSensors", "capability.presenceSensor", title: "Select Contact Sensors", submitOnChange: true, required: false, multiple: true
-                input name: "Create", type: "button", title: state.createCombinedSensorButtonName, submitOnChange:true, width: 5
-                displayFooter()
-            }
+	dynamicPage (name: "mainPage", title: "", install: true, uninstall: true) {
+        section("<b>Create a virtual presence sensor from one or more contact sensor(s).</b>") {
+            paragraph "Presence will update from present to not present when the contact is open. It will update from not present to present when the contact closes."
+			input "contactSensors", "capability.presenceSensor", title: "Select Contact Sensors", submitOnChange: true, required: true, multiple: true
+            input name: "Create", type: "button", title: state.createCombinedSensorButtonName, submitOnChange:true, width: 5
+            displayFooter()
     	}
     }
 }
@@ -58,7 +49,8 @@ def updated() {
 }
 
 def initialize() {
-    if (presSensors) {subscribe(contactSensors, "contact", handler)}
+    if (contactSensors) {subscribe(contactSensors, "contact.open", handler)}
+    if (contactSensors) {subscribe(contactSensors, "contact.closed", handler)}
     setCreateCombinedSensorButtonName()
 }
 
@@ -68,14 +60,14 @@ def handler(evt) {
 		if (contactSensor.currentValue("contact") == "closed") {present = true}
     }
     def previousPresent = (getChildDevice("CombinedContact_${app.id}")).currentValue("contact")
-	if (closed) {(getChildDevice("CombinedPres_${app.id}")).arrived()}
-	else {(getChildDevice("CombinedPres_${app.id}")).departed()}
+	if (closed) {(getChildDevice("CombinedContact_${app.id}")).arrived()}
+	else {(getChildDevice("CombinedContact_${app.id}")).departed()}
 }
 
 def setCreateCombinedSensorButtonName() {
     if (getChildDevice("CombinedContact_${app.id}")) {
         state.createCombinedSensorButtonName = "Delete Combined Contact Sensor"
-    } else if (!getChildDevice("CombinedPres_${app.id}")) {
+    } else if (!getChildDevice("CombinedContact_${app.id}")) {
         state.createCombinedSensorButtonName = "Create Combined Contact Sensor"
     }
 }
@@ -93,6 +85,6 @@ setCreateCombinedSensorButtonName()
 
 def displayFooter(){
 	section() {
-		paragraph "<div style='color:#1A77C9;text-align:center'>Auto Lock<br><a href='https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=3MPZ3GU5XL8RS&item_name=Hubitat+Development&currency_code=USD' target='_blank'><img src='https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_37x23.jpg' border='0' alt='PayPal Logo'></a><br>Buy me a beer!</div>"
+		paragraph "<div style='color:#1A77C9;text-align:center'>Combined Contact Sensors to Presence Device<br><a href='https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=3MPZ3GU5XL8RS&item_name=Hubitat+Development&currency_code=USD' target='_blank'><img src='https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_37x23.jpg' border='0' alt='PayPal Logo'></a><br>Buy me a beer!</div>"
 	}       
 }
