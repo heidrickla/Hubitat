@@ -10,7 +10,7 @@ import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.48"
+	state.version = "1.1.49"
 }
 
 definition(
@@ -1056,7 +1056,7 @@ def turnOffLoggingTogglesIn30() {
     if (!isInfo) {app.updateSetting("isInfo",[value:"false",type:"bool"])}
     if (!isDebug) {app.updateSetting("isDebug",[value:"false",type:"bool"])}
     if (!isTrace) {app.updateSetting("isTrace",[value:"false",type:"bool"])}
-    if (isTrace == true) {runIn(1800, infoOff)}
+    if (isInfo == true) {runIn(1800, infoOff)}
     if (isDebug == true) {runIn(1800, debugOff)}
     if (isTrace == true) {runIn(1800, traceOff)}
 }
