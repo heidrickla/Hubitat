@@ -10,7 +10,7 @@ import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.46"
+	state.version = "1.1.48"
 }
 
 definition(
@@ -184,6 +184,7 @@ def mainPage() {
 
 @Field static List<Map<String,String>> whenToUnlockOptions = [
     ["1": "Bolt/frame strike protection"],
+    ["8": "Attempt to clear lock jams"],
     ["2": "Presence unlock"],
     ["3": "Fire/medical panic unlock"],
     ["7": "Unlock with Modes"],
@@ -237,6 +238,8 @@ def mainPage() {
     ["1": "Lock"],
     ["2": "Contact Sensor"],
     ["3": "Smoke Detector"]
+//WIP    ["4": "Lock Presence Sensor"],
+//WIP    ["5": "Unlock Presence Sensor"]
 ]
 
 @Field static List<Map<String,String>> failureNotificationOptions = [
@@ -319,9 +322,9 @@ def initialize() {
     subscribe(contact, "contact.open", contactOpenHandler)
     subscribe(contact, "contact.closed", contactClosedHandler)
     subscribe(contact, "battery", contactBatteryHandler)
-    if (settings.whenToLock?.contains("2")) {subscribe(lockPresence, "presence", lockPresenceHandler)}
+    if (settings.whenToLock?.contains("2")) {subscribe(lockPresence, "presence.not present", lockPresenceHandler)}
     if (settings.whenToLock?.contains("2")) {subscribe(lockPresence, "battery", lockPresenceBatteryHandler)}
-    if (settings.whenToUnlock?.contains("2")) {subscribe(unlockPresence, "presence", unlockPresenceHandler)}
+    if (settings.whenToUnlock?.contains("2")) {subscribe(unlockPresence, "presence.present", unlockPresenceHandler)}
     if (settings.whenToUnlock?.contains("2")) {subscribe(unlockPresence, "battery", unlockPresenceBatteryHandler)}
     subscribe(enableHSMSwitch, "switch", enableHSMHandler)
     if (settings.whenToLock?.contains("7") || settings.whenToUnlock?.contains("7")) {subscribe(location, "mode", modeHandler)}
@@ -384,14 +387,17 @@ def lock1LockHandler(evt) {
     // Device Status
     ifTrace("lock1LockHandler: ${evt.value}")
     if (evt.value) {state.lock1LockStatus = "[${evt.value}]"
-    } else if ((state.lock1LockStatus == null) && (lock1?.currentValue("lock") != null)) {state.lock1LockStatus = "[${lock1.currentValue("lock")}]"
-    } else if ((state.lock1LockStatus == null) && (lock1?.latestValue("lock") != null)) {state.lock1LockStatus = "[${lock1.latestValue("lock")}]"
-    } else if (state.lock1LockStatus == null) {state.lock1LockStatus = " "}
+    } else if (lock1?.currentValue("lock") != null) {state.lock1LockStatus = "[${lock1.currentValue("lock")}]"
+    } else if (lock1?.latestValue("lock") != null) {state.lock1LockStatus = "[${lock1.latestValue("lock")}]"
+    } else if (state?.lock1LockStatus == null) {state.lock1LockStatus = " "
+        log.warn "${evt.value}"
+    }
     
     // Send Lock Notification
     ifDebug("${evt.descriptionText}")
-    if ((evt.type == 'physical') && evt.descriptionText.contains('locked') && settings.eventNotifications?.contains("1")) {sendEventNotification("${evt.descriptionText}")}
-    if ((evt.type == 'digital') && evt.descriptionText.contains('locked') && settings.eventNotifications?.contains("3")) {sendEventNotification("${evt.descriptionText}")}
+    if ((evt.type == 'physical') && evt.descriptionText.contains('locked') && settings.eventNotifications?.contains("1")) {sendEventNotification("${evt.descriptionText}")
+    } else if ((evt.type == 'digital') && evt.descriptionText.contains('locked') && settings.eventNotifications?.contains("3")) {sendEventNotification("${evt.descriptionText}")
+    } else if (evt.descriptionText.contains('locked') && (settings.eventNotifications?.contains("1") || settings.eventNotifications?.contains("3"))) {sendEventNotification("${evt.descriptionText}")}
     updateLabel()
     
     // Device Handler Action
@@ -420,14 +426,17 @@ def lock1UnlockHandler(evt) {
     // Device Status
     ifTrace("lock1UnlockHandler: ${evt.value}")
     if (evt.value) {state.lock1LockStatus = "[${evt.value}]"
-    } else if ((state.lock1LockStatus == null) && (lock1?.currentValue("lock") != null)) {state.lock1LockStatus = "[${lock1.currentValue("lock")}]"
-    } else if ((state.lock1LockStatus == null) && (lock1?.latestValue("lock") != null)) {state.lock1LockStatus = "[${lock1.latestValue("lock")}]"
-    } else if (state.lock1LockStatus == null) {state.lock1LockStatus = " "}
+    } else if (lock1?.currentValue("lock") != null) {state.lock1LockStatus = "[${lock1.currentValue("lock")}]"
+    } else if (lock1?.latestValue("lock") != null) {state.lock1LockStatus = "[${lock1.latestValue("lock")}]"
+    } else if (state?.lock1LockStatus == null) {state.lock1LockStatus = " "
+        log.warn "${evt.value}"
+    }
     
     // Send Unlock Notification
     ifDebug("${evt.descriptionText}")
-    if ((evt.type == 'physical') && evt.descriptionText.contains('unlocked') && settings.eventNotifications?.contains("2")) {sendEventNotification("${evt.descriptionText}")}
-    if ((evt.type == 'digital') && evt.descriptionText.contains('unlocked') && settings.eventNotifications?.contains("4")) {sendEventNotification("${evt.descriptionText}")}
+    if ((evt.type == 'physical') && evt.descriptionText.contains('unlocked') && settings.eventNotifications?.contains("2")) {sendEventNotification("${evt.descriptionText}")
+    } else if ((evt.type == 'digital') && evt.descriptionText.contains('unlocked') && settings.eventNotifications?.contains("4")) {sendEventNotification("${evt.descriptionText}")
+    } else if (evt.descriptionText.contains('unlocked') && (settings.eventNotifications?.contains("2") || settings.eventNotifications?.contains("4"))) {sendEventNotification("${evt.descriptionText}")}
     updateLabel()
     
     // Device Handler Action
@@ -447,24 +456,24 @@ def lock1UnlockHandler(evt) {
 
 def lock1BatteryHandler(evt) {
     // Device Status
-    ifTrace("lock1BatteryHandler: ${evt.value}")
+    ifTrace("lock1BatteryHandler: Battery: [${evt.value}%]")
     if (evt.value) {state.lock1BatteryStatus = "Battery: [${evt.value}%]"
     } else if (lock1?.currentBattery != null) {state.lock1BatteryStatus = "Battery: [${lock1.currentBattery}%]"
     } else if (lock1?.currentValue("battery") != null) {state.lock1BatteryStatus = "Battery: [${lock1.currentValue("battery")}%]"
     } else if (lock1?.latestValue("battery") != null) {state.lock1BatteryStatus = "Battery: [${lock1.latestValue("battery")}%]"
-    } else if (state.lock1BatteryStatus == null) {state.lock1BatteryStatus = " "
-        if (evt.value != null) {log.warn "${evt.value}"}
+    } else if (state?.lock1BatteryStatus == null) {state.lock1BatteryStatus = " "
+        log.warn "${evt.value}"
     }
-    if (lowBatteryDevicesToNotifyFor?.contains("1") && (notifyOnLowBattery == true) && (lowBatteryAlertThreshold != null) && (lowBatteryAlertThreshold.toInteger() > -1) && (evt.value < lowBatteryAlertThreshold.toInteger())) {sendEventNotification("${lock1} battery is ${evt.value}.")}
+    if (lowBatteryDevicesToNotifyFor?.contains("1") && (notifyOnLowBattery == true) && (lowBatteryAlertThreshold) && (evt.value.toDouble() < lowBatteryAlertThreshold.toDouble())) {sendEventNotification("${lock1} battery is ${evt.value}.")}
 
     // Device Handler Action
 }
 
 def lock1JammedHandler(evt) {
-    if (evt.value == "unknown") {
+    if (evt.value) {
 	if (settings.failureNotifications?.contains("0") && (lock1.currentValue("lock") == "unknown")) {sendEventNotification("Lock is possibly jammed.")}
-	    unlockDoor()
-		runIn(3, lockDoor)
+        if (!settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("8") && (retryLock == true)) {unlockDoor()}
+        if (!settings.whenToLock?.contains("6") && (retryLock == true)) {runIn(3, lockDoor)}
     }
 }
 
@@ -472,10 +481,10 @@ def contactOpenHandler(evt) {
     // Device Status
     ifTrace("contactOpenHandler: ${evt.value}")
     if (evt.value) {state.contactContactStatus = "[${evt.value}]"
-    } else if ((state.contactContactStatus == null) && (contact?.currentValue("contact") != null)) {state.contactContactStatus = "[${contact.currentValue("contact")}]"
-    } else if ((state.contactContactStatus == null) && (contact?.latestValue("contact") != null)) {state.contactContactStatus = "[${contact.latestValue("contact")}]"
-    } else if (state.contactContactStatus == null) {state.contactContactStatus = " "
-        if (evt.value != null) {log.warn "${evt.value}"}
+    } else if (contact?.currentValue("contact") != null) {state.contactContactStatus = "[${contact.currentValue("contact")}]"
+    } else if (contact?.latestValue("contact") != null) {state.contactContactStatus = "[${contact.latestValue("contact")}]"
+    } else if (state?.contactContactStatus == null) {state.contactContactStatus = " "
+        log.warn "${evt.value}"
     }
     
     // Device Handler Action
@@ -499,10 +508,10 @@ def contactClosedHandler(evt) {
     // Device Status
     ifTrace("contactClosedHandler: ${evt.value}")
     if (evt.value) {state.contactContactStatus = "[${evt.value}]"
-    } else if ((state.contactContactStatus == null) && (contact?.currentValue("contact") != null)) {state.contactContactStatus = "[${contact.currentValue("contact")}]"
-    } else if ((state.contactContactStatus == null) && (contact?.latestValue("contact") != null)) {state.contactContactStatus = "[${contact.latestValue("contact")}]"
-    } else if (state.contactContactStatus == null) {state.contactContactStatus = " "
-        if (evt.value != null) {log.warn "${evt.value}"}
+    } else if (contact?.currentValue("contact") != null) {state.contactContactStatus = "[${contact.currentValue("contact")}]"
+    } else if (contact?.latestValue("contact") != null) {state.contactContactStatus = "[${contact.latestValue("contact")}]"
+    } else if (state?.contactContactStatus == null) {state.contactContactStatus = " "
+        log.warn "${evt.value}"
     }
     
     // Device Handler Action
@@ -519,15 +528,15 @@ def contactClosedHandler(evt) {
 
 def contactBatteryHandler(evt) {
     // Device Status
-    ifTrace("contactBatterytHandler: ${evt.value}")
+    ifTrace("contactBatterytHandler: Battery: [${evt.value}%]")
     if (evt.value) {state.contactBatteryStatus = "Battery: [${evt.value}%]"
-    } else if ((state.contactBatteryStatus == null) && (contact?.currentBattery != null)) {state.contactBatteryStatus = "Battery: [${contact.currentBattery}%]"
-    } else if ((contact?.currentValue("battery") != null)) {state.contactBatteryStatus = "Battery: [${contact.currentValue("battery")}%]"
-    } else if ((state.contactBatteryStatus == null) && (contact?.latestValue("battery") != null)) {state.contactBatteryStatus = "Battery: [${contact.latestValue("battery")}%]"
-    } else if (state.contactBatteryStatus == null) {state.contactBatteryStatus = " "
-        if (evt.value != null) {log.warn "${evt.value}"}
+    } else if (contact?.currentBattery != null) {state.contactBatteryStatus = "Battery: [${contact.currentBattery}%]"
+    } else if (contact?.currentValue("battery") != null) {state.contactBatteryStatus = "Battery: [${contact.currentValue("battery")}%]"
+    } else if (contact?.latestValue("battery") != null) {state.contactBatteryStatus = "Battery: [${contact.latestValue("battery")}%]"
+    } else if (state?.contactBatteryStatus == null) {state.contactBatteryStatus = " "
+        log.warn "${evt.value}"
     }
-    if ((evt.value != null) && lowBatteryDevicesToNotifyFor?.contains("2") && (notifyOnLowBattery == true) && (lowBatteryAlertThreshold != null) && (lowBatteryAlertThreshold.toInteger() > -1) && (evt.value < lowBatteryAlertThreshold.toInteger())) {sendEventNotification("${contact} battery is ${evt.value}.")}
+    if (lowBatteryDevicesToNotifyFor?.contains("2") && (notifyOnLowBattery == true) && (lowBatteryAlertThreshold) && (evt.value.toDouble() < lowBatteryAlertThreshold.toDouble())) {sendEventNotification("${contact} battery is ${evt.value}.")}
 
     // Device Handler Action
 }
@@ -536,11 +545,13 @@ def lockPresenceHandler(evt) {
     // Device Status
     ifTrace("lockPresenceHandler: ${evt.value}")
     if (evt.value) {state.unlockPresenceStatus = "[${evt.value}]"
-    } else if (state.unlockPresenceStatus == null) {(state?.lockPresenceStatus = " ")}
+    } else if (state?.unlockPresenceStatus == null) {(state?.lockPresenceStatus = " ")
+        log.warn "${evt.value}"
+    }
     
     // Device Handler Action
     if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {ifTrace("lockPresenceHanlder: Application is paused or disabled.")
-    } else if (!settings.whenToLock?.contains("6") && settings.whenToLock?.contains("2") && (evt.value == "departed") && (contact?.currentValue("contact") == "closed") || (contact == null)) {
+    } else if (!settings.whenToLock?.contains("6") && settings.whenToLock?.contains("2") && (evt.value == "not present")) {
         if (settings.eventNotifications?.contains("7")) {sendEventNotification("Presence Departure Lock")}
         unscheduleLockCommands()
         if (maxRetriesLock != null) {atomicState.countLock = maxRetriesLock} else {(atomicState.countLock = 0)}
@@ -550,24 +561,29 @@ def lockPresenceHandler(evt) {
 
 def lockPresenceBatteryHandler(evt) {
     // Device Status
-    ifTrace("lockPresenceBatteryHandler: ${evt.value}")
+    ifTrace("lockPresenceBatteryHandler: Battery: [${evt.value}%]")
     if (evt.value) {state.unlockPresenceBatteryStatus = "Battery: [${evt.value}%]"
-    } else if ((state.unlockPresenceBatteryStatus == null) && (lockPresence?.currentBattery != null)) {state.lockPresenceBatteryStatus = "Battery: [${lockPresence.currentBattery}]"
-    } else if (state.unlockPresenceBatteryStatus == null) {(state.unlockPresenceBatteryStatus = " ")}
-    
+    } else if (lockPresence?.currentBattery != null) {state.lockPresenceBatteryStatus = "Battery: [${lockPresence.currentBattery}]"
+    } else if (state?.unlockPresenceBatteryStatus == null) {(state.unlockPresenceBatteryStatus = " ")
+        log.warn "${evt.value}"
+    }
+
     // Device Handler Action
+//    if (lowBatteryDevicesToNotifyFor?.contains("1") && (notifyOnLowBattery == true) && (lowBatteryAlertThreshold) && (evt.value.toDouble() < lowBatteryAlertThreshold.toDouble())) {sendEventNotification("${lock1} battery is ${evt.value}.")}
 }
 
 def unlockPresenceHandler(evt) {
     // Device Status
     ifTrace("unlockPresenceHandler: ${evt.value}")
     if (evt.value) {state.unlockPresenceStatus = "[${evt.value}]"
-    } else if ((state.unlockPresenceStatus == null) && (lockPresence?.currentValue("presence") != null)) {state.lockPresenceStatus = " [${lockPresence.currentValue("presence")}]"
-    } else if (state.unlockPresenceStatus == null) {(state.lockPresenceStatus = " ")}
+    } else if (lockPresence?.currentValue("presence") != null) {state.lockPresenceStatus = " [${lockPresence.currentValue("presence")}]"
+    } else if (state?.unlockPresenceStatus == null) {(state.lockPresenceStatus = " ")
+        log.warn "${evt.value}"
+    }
     
     // Device Handler Action
     if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {ifTrace("unlockPresenceHanlder: Application is paused or disabled.")
-    } else if (!settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("2") && (evt.value == "arrived")) {
+    } else if (!settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("2") && (evt.value == "present")) {
         if (settings.eventNotifications?.contains("6")) {sendEventNotification("Presence Arrival Unlock")}
         unscheduleLockCommands()
         if (maxRetriesUnlock != null) {atomicState.countUnlock = maxRetriesUnlock} else {(atomicState.countUnlock = 0)}
@@ -577,21 +593,25 @@ def unlockPresenceHandler(evt) {
 
 def unlockPresenceBatteryHandler(evt) {
     // Device Status
-    ifTrace("unlockPresenceBatteryHandler: ${evt.value}")
+    ifTrace("unlockPresenceBatteryHandler: Battery: [${evt.value}%]")
     if (evt.value) {state.unlockPresenceBatteryStatus = "Battery: [${evt.value}%]"    
-    } else if ((state.unlockPresenceBatteryStatus == null) && (unlockPresence?.currentBattery != null)) {state.unlockPresenceBatteryStatus = "Battery: [${unlockPresence.currentBattery}]"
-    } else if (state.unlockPresenceBatteryStatus == null) {(state.unlockPresenceBatteryStatus = " ")}
-    
+    } else if (unlockPresence?.currentBattery != null) {state.unlockPresenceBatteryStatus = "Battery: [${unlockPresence.currentBattery}]"
+    } else if (state?.unlockPresenceBatteryStatus == null) {(state.unlockPresenceBatteryStatus = " ")
+        log.warn "${evt.value}"
+    }
     // Device Handler Action
+//    if (lowBatteryDevicesToNotifyFor?.contains("1") && (notifyOnLowBattery == true) && (lowBatteryAlertThreshold) && (evt.value.toDouble() < lowBatteryAlertThreshold.toDouble())) {sendEventNotification("${lock1} battery is ${evt.value}.")}
 }
 
 def fireMedicalHandler(evt) {
     // Device Status
     ifTrace("fireMedicalHandler: ${evt.value}")
     if (evt.value) {state.fireMedicalStatus = "[${evt.value}]"
-    } else if ((state.fireMedicalStatus == null) && (fireMedical?.currentValue("contact") != null)) {state.fireMedicalStatus = "[${fireMedical.currentValue("contact")}]"
-    } else if ((state.fireMedicalStatus == null) && (fireMedical?.latestValue("contact") != null)) {state.fireMedicalStatus = "[${fireMedical.latestValue("contact")}]"
-    } else if (state.fireMedicalStatus == null) {(state.fireMedicalStatus = " ")}
+    } else if (fireMedical?.currentValue("contact") != null) {state.fireMedicalStatus = "[${fireMedical.currentValue("contact")}]"
+    } else if (fireMedical?.latestValue("contact") != null) {state.fireMedicalStatus = "[${fireMedical.latestValue("contact")}]"
+    } else if (state?.fireMedicalStatus == null) {(state.fireMedicalStatus = " ")
+        log.warn "${evt.value}"
+    }
     
     // Device Handler Action
     if (evt.value != null) {ifTrace("fireMedicalHandler: ${evt.value}")}
@@ -611,14 +631,15 @@ def fireMedicalHandler(evt) {
 
 def fireMedicalBatteryHandler(evt) {
     // Device Status
-    ifTrace("fireMedicalBatteryHandler: ${evt.value}")
+    ifTrace("fireMedicalBatteryHandler: Battery: [${evt.value}%]")
     if (evt.value) {state.fireMedicalBatteryStatus = "[${evt.value}%]"
-    } else if ((state.fireMedicalBatteryStatus == null) && (fireMedical?.currentBattery != null)) {state.fireMedicalBatteryStatus = "Battery: [${fireMedical.currentBattery}%]"
-    } else if ((state.fireMedicalBatteryStatus == null) && (fireMedical?.currentValue("battery") != null)) {state.fireMedicalBatteryStatus = "Battery: [${fireMedical.currentValue("battery")}%]"
-    } else if ((state.fireMedicalBatteryStatus == null) && (fireMedical?.latestValue("battery") != null)) {state.fireMedicalBatteryStatus = "Battery: [${fireMedical.latestValue("battery")}%]"
-    } else if (state.fireMedicalBatteryStatus == null) {(state.fireMedicalBatteryStatus = " ")}
-    if ((evt.value != null) && lowBatteryDevicesToNotifyFor.contains("3") && (notifyOnLowBattery == true) && (lowBatteryAlertThreshold != null) && (lowBatteryAlertThreshold > -1) && (evt.value < lowBatteryAlertThreshold)) {sendEventNotification("${fireMedical} battery is ${evt.value}.")}
-
+    } else if (fireMedical?.currentBattery != null) {state.fireMedicalBatteryStatus = "Battery: [${fireMedical.currentBattery}%]"
+    } else if (fireMedical?.currentValue("battery") != null) {state.fireMedicalBatteryStatus = "Battery: [${fireMedical.currentValue("battery")}%]"
+    } else if (fireMedical?.latestValue("battery") != null) {state.fireMedicalBatteryStatus = "Battery: [${fireMedical.latestValue("battery")}%]"
+    } else if (state?.fireMedicalBatteryStatus == null) {(state.fireMedicalBatteryStatus = " ")
+        log.warn "${evt.value}"
+    }
+    if (lowBatteryDevicesToNotifyFor?.contains("3") && (notifyOnLowBattery == true) && (lowBatteryAlertThreshold) && (evt.value.toDouble < lowBatteryAlertThreshold.toDouble())) {sendEventNotification("${fireMedical} battery is ${evt.value}.")}
     // Device Handler Action
 }
 
@@ -626,9 +647,9 @@ def deviceActivationSwitchHandler(evt) {
     // Device Status
     ifTrace("deviceActivationSwitchHandler: ${evt.value}")
     if (evt.value) {state.deviceActivationSwitchStatus = "[${evt.value}]"
-    } else if ((state.deviceActivationSwitchStatus == null) && (deviceActivationSwitch?.currentValue("switch") != null)) {state.deviceActivationSwitchStatus = "[${deviceActivationSwitch.currentValue("switch")}]"
-    } else if ((state.deviceActivationSwitchStatus == null) && (deviceActivationSwitch?.latestValue("switch") != null)) {state.deviceActivationSwitchStatus = "[${deviceActivationSwitch.latestValue("switch")}]"
-    } else if (state.deviceActivationSwitchStatus == null) {(state.deviceActivationSwitchStatus = " ")}
+    } else if (deviceActivationSwitch?.currentValue("switch") != null) {state.deviceActivationSwitchStatus = "[${deviceActivationSwitch.currentValue("switch")}]"
+    } else if (deviceActivationSwitch?.latestValue("switch") != null) {state.deviceActivationSwitchStatus = "[${deviceActivationSwitch.latestValue("switch")}]"
+    } else if (state?.deviceActivationSwitchStatus == null) {(state.deviceActivationSwitchStatus = " ")}
 
     // Device Handler Action
     if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {
@@ -675,9 +696,9 @@ def disabledHandler(evt) {
     // Device Status
     ifTrace("disabledHandler: ${evt.value}")
     if (evt.value) {state.disabledSwitchStatus = "[${evt.value}]"
-    } else if ((state.disabledSwitchStatus == null) && (disabledSwitch?.currentValue("switch") != null)) {state.disabledSwitchStatus = "[${disabledSwitch.currentValue("switch")}]"
-    } else if ((state.disabledSwitchStatus == null) && (disabledSwitch?.latestValue("switch")) != null) {state.disabledSwitchStatus = "[${disabledSwitch.latestValue("switch")}]"
-    } else if (state.disabledSwitchStatus == null) {(state.disabledSwitchStatus = " ")}
+    } else if (disabledSwitch?.currentValue("switch") != null) {state.disabledSwitchStatus = "[${disabledSwitch.currentValue("switch")}]"
+    } else if (disabledSwitch?.latestValue("switch") != null) {state.disabledSwitchStatus = "[${disabledSwitch.latestValue("switch")}]"
+    } else if (state?.disabledSwitchStatus == null) {(state.disabledSwitchStatus = " ")}
     
     // Device Handler Action
     if (getAllOk() == false) {ifTrace("TurnOffFanSwitchManual: getAllOk = ${getAllOk()} state?.pausedOrDisabled = ${state?.pausedOrDisabled}")
@@ -715,9 +736,9 @@ def enableHSMSwitchHandler(evt) {
     // Device Status
     ifTrace("enableHSMSwitchHandler: ${evt.value}")
     if (evt.value) {state.enableHSMSwitchStatus = "[${evt.value}]"
-    } else if ((state.enableHSMSwitchStatus == null) && (enableHSMSwitch?.currentValue("switch") != null)) {state.enableHSMSwitchStatus = "[${enableHSMSwitch.currentValue("switch")}]"
-    } else if ((state.enableHSMSwitchStatus == null) && (enableHSMSwitch?.latestValue("switch") != null)) {state.enableHSMSwitchStatus = "[${enableHSMSwitch.latestValue("switch")}]"
-    } else if (state.enableHSMSwitchStatus == null) {(state.enableHSMSwitchStatus = " ")}
+    } else if (enableHSMSwitch?.currentValue("switch") != null) {state.enableHSMSwitchStatus = "[${enableHSMSwitch.currentValue("switch")}]"
+    } else if (enableHSMSwitch?.latestValue("switch") != null) {state.enableHSMSwitchStatus = "[${enableHSMSwitch.latestValue("switch")}]"
+    } else if (state?.enableHSMSwitchStatus == null) {(state.enableHSMSwitchStatus = " ")}
     
     // Device Handler Action
     if (((enableHSMToggle == true) || (enableHSMSwitch?.currentValue("switch") == "on")) && (hsmCommandsLock != null)) {sendLocationEvent(name: "hsmSetArm", value: "${hsmCommandsLock}")}
@@ -746,7 +767,7 @@ def lockDoor(countLock) {
             ifTrace("lockDoor: Door is open. Waiting for door to close before locking.")
             unscheduleLockCommands()
         } else if ((contact?.currentValue("contact") == "closed") || (contact == null)) {
-            if (state.delayLock == 0) {ifDebug("Locking door now.")} else if (minSecLock == true) {ifDebug("Locking door in ${durationLock} seconds.")} else {ifDebug("Locking door in ${durationLock} minutes.")}
+            if (state?.delayLock == 0) {ifDebug("Locking door now.")} else if (minSecLock == true) {ifDebug("Locking door in ${durationLock} seconds.")} else {ifDebug("Locking door in ${durationLock} minutes.")}
             configureDelayLock()
             if ((retryLock == false) && (lock1?.currentValue("lock") != "locked")) {
                 runIn(state.delayLock, lock1Lock)
@@ -885,13 +906,9 @@ def appButtonHandler(btn) {
     ifTrace("appButtonHandler")
     if (btn == "Disabled by Switch") {
         state.disabled = false
-        subscribe(disabledSwitch, "switch", disabledHandler)
-        subscribe(lock1, "lock.locked", lock1LockHandler)
-        subscribe(lock1, "lock.unlocked", lock1UnlockHandler)
-        subscribe(lock1, "battery", lock1BatteryHandler)
-        subscribe(contact, "contact.open", contactOpenHandler)
-        subscribe(contact, "contact.closed", contactClosedHandler)
-        subscribe(contact, "battery", contactBatteryHandler)
+        unsubscribe()
+        unschedule()
+        updateLabel()
     } else if (btn == "Resume") {
         state.disabled = false
         state.paused = !state.paused
@@ -901,13 +918,7 @@ def appButtonHandler(btn) {
         if (state?.paused) {
             unschedule()
             unsubscribe()
-            subscribe(disabledSwitch, "switch", disabledHandler)
-            subscribe(lock1, "lock.locked", lock1LockHandler)
-            subscribe(lock1, "lock.unlocked", lock1UnlockHandler)
-            subscribe(lock1, "battery", lock1BatteryHandler)
-            subscribe(contact, "contact.open", contactOpenHandler)
-            subscribe(contact, "contact.closed", contactClosedHandler)
-            subscribe(contact, "battery", contactBatteryHandler)
+            updated()
         } else {
             initialize()
             state.pausedOrDisabled = false
@@ -925,13 +936,6 @@ def setPauseButtonName() {
         state.pauseButtonName = "Disabled by Switch"
         unsubscribe()
         unschedule()
-        subscribe(disabledSwitch, "switch", disabledHandler)
-        subscribe(lock1, "lock.locked", lock1LockHandler)
-        subscribe(lock1, "lock.unlocked", lock1UnlockHandler)
-        subscribe(lock1, "battery", lock1BatteryHandler)
-        subscribe(contact, "contact.open", contactOpenHandler)
-        subscribe(contact, "contact.closed", contactClosedHandler)
-        subscribe(contact, "battery", contactBatteryHandler)
         updateLabel()
     } else if (state?.paused == true) {
         state.pauseButtonName = "Resume"
