@@ -306,7 +306,6 @@ def initialize() {
     if (maxRetriesLock != null) {atomicState.countLock = maxRetriesLock} else {(atomicState.countLock = 0)}
 	if (maxRetriesUnlock != null) {atomicState.countUnlock = maxRetriesUnlock} else {(atomicState.countUnlock = 0)}
     if ((atomicState.countUnlock == -99) && (maxRetriesUnlock != null)) {atomicState.countUnlock = maxRetriesUnlock}
-    turnOffLoggingTogglesIn30()
     subscribe(disabledSwitch, "switch.on", disabledHandler)
     subscribe(disabledSwitch, "switch.off", disabledHandler)
     subscribe(deviceActivationSwitch, "switch.on", deviceActivationSwitchHandler)
@@ -330,6 +329,7 @@ def initialize() {
     if (settings.whenToLock?.contains("7") || settings.whenToUnlock?.contains("7")) {subscribe(location, "mode", modeHandler)}
     if (((whenToLockHSM || whenToUnlockHSM) && enableHSMActions) || (settings.whenToLock?.contains("5") && (hsmLockStatus)) || (settings.whenToUnlock?.contains("0") && (hsmUnlockStatus))) {subscribe(location, "hsmStatus", hsmStatusHandler)}   //For app to subscribe to HSM status
     if ((whenToLockHSM || whenToUnlockHSM) && enableHSMActions) {subscribe(location, "hsmAlerts", hsmAlertHandler)}    //For app to subscribe to HSM alerts
+    turnOffLoggingTogglesIn30()
     getAllOk()
 }
 
@@ -407,14 +407,14 @@ def lock1LockHandler(evt) {
     // Unlocking is disabled. Doing nothing.
     } else if (settings.whenToUnlock?.contains("1") && (contact?.currentValue("contact") == "open")) {
         ifDebug("lock1LockHandler:  Lock was locked while Door was open. Performing a fast unlock to prevent hitting the bolt against the frame.")
-        lock1Unlock()
         unscheduleLockCommands()
+        lock1Unlock()
         state.delayUnlock = 1
         runIn(state.delayUnlock, unlockDoor, [data: maxRetriesUnlock])
     } else if (settings.whenToUnlock?.contains("3") && (fireMedical?.currentValue("smokeSensor") == "detected")) {
         ifDebug("lock1LockHandler: Lock was locked while the Fire/Medical Sensor detected smoke. Performing a fast unlock.")
-        lock1Unlock()
         unscheduleLockCommands()
+        lock1Unlock()
         state.delayUnlock = 1
         runIn(state.delayUnlock, unlockDoor, [data: maxRetriesUnlock])
     } else if ((lock1?.currentValue("lock") == "locked") && (contact?.currentValue("contact") == "closed") || (contact == null)) {
@@ -775,7 +775,7 @@ def lockDoor(countLock) {
                 i = (delayBetweenRetriesLock + state.delayLock)
                 runIn(i, lock1Lock)
                 runIn(i+i, lockDoor)
-                ifTrace("Next retry in ${delayBetweenRetriesLock} seconds. Retry number: = ${atomicState.countLock}")
+                ifTrace("Next retry in ${delayBetweenRetriesLock} seconds. Retries remaining: = ${atomicState.countLock}")
                 atomicState.countLock = (atomicState.countLock - 1)
             } else if ((retryLock == true) && (atomicState.countLock == maxRetriesUnlock) && (lock1?.currentValue("lock") != "locked")) {
                 runIn(state.delayLock, lock1Lock)
@@ -794,7 +794,6 @@ def lockDoor(countLock) {
 }
 
 def lock1Lock() {
-    unscheduleLockCommands()
     ifTrace("lock1Lock")
     lock1.lock()
     ifDebug("Lock command sent")
@@ -825,6 +824,7 @@ def unlockDoor(countUnlock) {
         } else if ((retryUnlock == true) && (atomicState.countUnlock > -1) && (atomicState.countUnlock != maxRetriesUnlock) && (lock1?.currentValue("lock") != "unlocked")) {
             runIn(delayBetweenRetriesUnlock, lock1Unlock)
             atomicState.countUnlock = (atomicState.countUnlock - 1)
+            ifTrace("Next retry in ${delayBetweenRetriesUnlock} seconds. Retries remaining: = ${atomicState.countUnlock}")
             runIn(delayBetweenRetriesUnlock, unlockDoor)
         } else if ((retryUnlock == true) && (atomicState.countUnlock == maxRetriesUnlock)) {
             runIn(state.delayUnlock, lock1Unlock)
@@ -841,7 +841,6 @@ def unlockDoor(countUnlock) {
 }
 
 def lock1Unlock() {
-    unscheduleLockCommands()
     ifTrace("lock1Unlock")
     lock1.unlock()
     ifDebug("Unlock command sent")
