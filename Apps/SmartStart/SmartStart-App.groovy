@@ -2,6 +2,11 @@
  *  SmartStart App
  *
  */
+def setVersion(){
+	state.version = "1.1.49" // Version number of this app
+	state.InternalName = "SmartStart"   // this is the name used in the JSON file for this app
+}
+
 import groovy.json.JsonSlurper
 //include 'asynchttp_v1'
 
