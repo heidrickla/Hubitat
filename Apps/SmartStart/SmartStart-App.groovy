@@ -47,7 +47,6 @@ preferences {
         section("SmartStart Credentials") {
             input("Username", "text", title:"SmartStart Username", description: "Your SmartStart Username" , required: true, displayDuringSetup: true)
             input("Password", "password", title:"SmartStart Password", description: "Your SmartStart Password", required: true, displayDuringSetup: true)
-            displayFooter()
         }
     }
 }
