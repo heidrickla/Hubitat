@@ -1,14 +1,25 @@
 /**
  *  SmartStart App
  *
+ *  Copyright 2020 John Daley
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ *  in compliance with the License. You may obtain a copy of the License at:
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
+ *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
+ *  for the specific language governing permissions and limitations under the License.
+ *
  */
+import groovy.json.JsonSlurper
+//include 'asynchttp_v1'
+
 def setVersion(){
 	state.version = "1.1.49" // Version number of this app
 	state.InternalName = "SmartStart"   // this is the name used in the JSON file for this app
 }
-
-import groovy.json.JsonSlurper
-//include 'asynchttp_v1'
 
 definition(
    name: "SmartStart",
@@ -25,6 +36,7 @@ definition(
    appSetting "Password"
    }
 
+
 def getApiEndpoint() {
  return "https://www.vcp.cloud"
 }
@@ -33,8 +45,9 @@ preferences {
 
     page(name: "mainPage", title: "Simple Automations", install: true, uninstall: true,submitOnChange: true) {
         section("SmartStart Credentials") {
-             input("Username", "text", title:"SmartStart Username", description: "Your SmartStart Username" , required: true, displayDuringSetup: true)
-             input("Password", "password", title:"SmartStart Password", description: "Your SmartStart Password", required: true, displayDuringSetup: true)
+            input("Username", "text", title:"SmartStart Username", description: "Your SmartStart Username" , required: true, displayDuringSetup: true)
+            input("Password", "password", title:"SmartStart Password", description: "Your SmartStart Password", required: true, displayDuringSetup: true)
+            displayFooter()
         }
     }
 }
@@ -237,4 +250,10 @@ def sendCommand(cmd, id) {
     //Data to help the resposne function know what was being asked at the time, and from who (what child device)
     def data = ["deviceNetworkId": deviceID, "request": "cmd", "cmd": cmd]
     asynchttpPost(processCallBack, params, data)
+}
+
+def displayFooter(){
+	section() {
+		paragraph "<div style='color:#1A77C9;text-align:center'>Smart Start<br><a href='https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=3MPZ3GU5XL8RS&item_name=Hubitat+Development&currency_code=USD' target='_blank'><img src='https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_37x23.jpg' border='0' alt='PayPal Logo'></a><br>Buy me a beer!</div>"
+	}       
 }
