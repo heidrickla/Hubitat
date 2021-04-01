@@ -1,3 +1,8 @@
+def setVersion(){
+	state.version = "1.1.49" // Version number of this app
+	state.InternalName = "SmartStart"   // this is the name used in the JSON file for this app
+}
+
 preferences {
     input("refresh_rate", "enum", title:"State Refresh Rate", options: ["Every 5 minutes","Every 10 minutes","Every 15 minutes","Every 30 minutes","Every hour","Every 3 hours","Disabled"], description: "Refresh Interval of vehicle information.", required: true, defaultValue: "Every 3 hours")
 }
