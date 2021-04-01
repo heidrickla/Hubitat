@@ -10,7 +10,11 @@ metadata {
         capability "Power Meter"
         capability "Sensor"
         capability "Actuator"
-        //capability "Geolocation"
+        
+        attribute "Geolocation", "string"
+        attribute "latitude", "number"
+        attribute "longitude", "number"
+        
         command "EngineOn"
         command "EngineOff"
     }
