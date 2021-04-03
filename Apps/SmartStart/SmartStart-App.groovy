@@ -48,11 +48,14 @@ preferences {
             input("Username", "text", title:"SmartStart Username", description: "Your SmartStart Username" , required: true, displayDuringSetup: true)
             input("Password", "password", title:"SmartStart Password", description: "Your SmartStart Password", required: true, displayDuringSetup: true)
         }
-	displayFooter()
+        section("Current Settings") {
+            paragraph "Current Token: ${state.token}"
+            paragraph "Lifespan: ${state.tokenexpiry}"
+        }
+        displayFooter()
+        
     }
 }
-
-
 
 def installed() {
     log.debug "Installed with settings: ${settings}"
@@ -66,13 +69,18 @@ def updated() {
 }
 
 def initialize() {
-    Date latestdate = new Date(); 
-	log.debug "Current Token: ${state.token} - Lifespan: ${state.tokenexpiry}"
+    Date latestdate = new Date();
+    state.token = "eyJhbGciOiJSUzUxMiJ9.eyJhY2NvdW50SWQiOjQzNDk5Niwic3ViIjoiZ3VhcmRkb2cxM0B5YWhvby5jb20gIiwicm9sZSI6IlNTIiwiY29sdEFjY291bnRJZCI6NDM0OTk2LCJjb2x0VGltZVpvbmUiOiJFdGMvR01UKzgiLCJjb2x0U2Vzc2lvbklkIjoibm1tN2loM3Y0b2x1azltbzJldWgzYmtoYzYiLCJleHAiOjE2MTc0NDI0NjgsInVzZXJJZCI6NzMyMTgwLCJjb2x0Um9sZXMiOlszLDExXSwiaWF0IjoxNjE3NDM5NzY4LCJjb2x0VXNlcklkIjo3MzIxODB9.Sn4Wv9EvznzxvrzS_vFCuvsDsDE0LLffEK8x2zKk5Cxh97Uam_jdeQLggMR2fRNIT_GWlVSEl_kwFdXeio7sl3j1lkGdLMOE77A6dtLdWK4G3cKdM0S7RYWqYUP47wviT7MK852p3FdHvAeGLJrLAzbpU1nF-eCYJq7mrGVoF0E"
+    state.tokenexpiry = 1617442468289
+	log.debug "Current Token: ${state.token} Lifespan: ${state.tokenexpiry}"
     
     if(state.token == null ) {
         //Need new SmartStartToken
         GetToken()
-    } else if(state.tokenexpiry - latestdate.getTime() <0) {
+    } else if(state?.tokenexpiry == null){
+        //Need new SmartStartToken
+        GetToken()
+    } else if(state?.tokenexpiry - latestdate.getTime() <0) {
     log.debug "MS left on token: ${state.tokenexpiry - latestdate.getTime()}"
         //Need new SmartStartToken
         GetToken()
@@ -88,10 +96,10 @@ def initialize() {
         // log.debug "PLEASE HERE: ${dni}"
         def children = app.getChildDevices()
         log.debug children.find{iee -> iee.deviceNetworkId == String.valueOf(dni.id)}
-        def childDevice = children.find{it.deviceNetworkId==String.valueOf(dni.id)}
+        def childDevice = children.find{it.deviceNetworkId == String.valueOf(dni.id)}
 
         if (!childDevice) {
-            childDevice = addChildDevice(app.namespace, "SmartStart Car", String.valueOf(dni.id), null, [name: "SmartStart.${dni.id}", label: "${dni.vehicleMake} ${dni.vehicleModel}" ?: "nullname", completedSetup: true])
+            childDevice = addChildDevice("heidrickla", "SmartStartCar", String.valueOf(dni.id), null, [name: "SmartStart.${dni.id}", label: "${dni.vehicleMake} ${dni.vehicleModel}" ?: "nullname", completedSetup: true])
             childDevice.doRefresh()
             log.debug "Device Creation - created ${childDevice.displayName} with id $dni.id"
         } else {
@@ -108,8 +116,10 @@ def uninstalled() {
 
 def GetCars(){
     //Check if token needed
-    Date latestdate = new Date(); 
-    if(state.tokenexpiry - latestdate.getTime() <0){
+    Date latestdate = new Date();
+    if(state?.token == null ) {GetToken()
+    } else if (state?.tokenexpiry == null) {GetToken()
+    } else if (state?.tokenexpiry - latestdate.getTime() <0){
         log.debug "MS left on token: ${state.tokenexpiry - latestdate.getTime()}"
         //Need new SmartStartToken
         GetToken()
@@ -189,7 +199,7 @@ def processCallBack(response, data) {
             }
             return statusdata
         } else if (results.find {it.toString().contains('action')} as Boolean) {
-        	//No action needed, Device will send refresh cmd to update itsself
+        	//No action needed, Device will send refresh cmd to update itself
         } else {
         	log.warn "RemoteStart - Did not get expected results from response. Body: $response.data"
         }
@@ -198,15 +208,17 @@ def processCallBack(response, data) {
 
 def pollStatus(id) {
     //Check if token needed
-    Date latestdate = new Date(); 
-    if(state.tokenexpiry - latestdate.getTime() <0) {
+    Date latestdate = new Date();
+    if (state.tokenexpiry == null) {
+        GetToken()
+    } else if (state.tokenexpiry - latestdate.getTime() <0) {
         log.debug "MS left on token: ${state.tokenexpiry - latestdate.getTime()}"
         //Need new SmartStartToken
         GetToken()
     }
     def statusuri = "${apiEndpoint}/v1/devices/command"
     def pollParams = [
-        method: 'POST',
+        //method: 'POST',
         uri: statusuri,
         requestContentType: 'application/json',
 		contentType: 'application/json',
@@ -215,13 +227,15 @@ def pollStatus(id) {
     ]
     //Data to help the resposne function know what was being asked at the time, and from who (what child device)
     def data = ["deviceNetworkId": id, "request": "readStatus"]
-    asynchttpPost(processCallBack, pollParams, data)
+    asynchttpPost('processCallBack', pollParams, [data])
 }
 
 def sendCommand(cmd, id) {
     //Check if token needed
-    Date latestdate = new Date(); 
-    if(state.tokenexpiry - latestdate.getTime() <0) {
+    Date latestdate = new Date();
+    if (state.tokenexpiry == null) {
+        GetToken()
+    } else if(state?.tokenexpiry - latestdate.getTime() <0) {
         log.debug "MS left on token: ${state.tokenexpiry - latestdate.getTime()}"
         //Need new SmartStartToken
         GetToken()
@@ -242,14 +256,22 @@ def sendCommand(cmd, id) {
     }
     def cmduri = "${apiEndpoint}/v1/devices/command"
     def params = [
-        method: 'POST',
+        //method: 'POST',
         uri: cmduri,
-        headers: ["Content-Type": "application/json", "Authorization": "Bearer ${state.token}"],
+        requestContentType: 'application/json',
+		contentType: 'application/json',
+        headers: ["Authorization": "Bearer ${state.token}"],
         body: ["deviceId": id, "command": cmdString]
     ]
     //Data to help the resposne function know what was being asked at the time, and from who (what child device)
     def data = ["deviceNetworkId": deviceID, "request": "cmd", "cmd": cmd]
-    asynchttpPost(processCallBack, params, data)
+    asynchttpPost('processCallBack', params, [data])
+}
+
+def appButtonHandler(btn) {
+    if (btn == "Submit") {
+        initialize()
+    }
 }
 
 def displayFooter(){
