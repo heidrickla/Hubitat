@@ -1,3 +1,5 @@
+import groovy.transform.Field
+
 def setVersion(){
 	state.version = "1.1.49" // Version number of this app
 	state.InternalName = "SmartStart"   // this is the name used in the JSON file for this app
@@ -8,7 +10,14 @@ preferences {
 }
 
 metadata {
-    definition(name: "SmartStart Car", namespace: "heidrickla", author: "Lewis Heidrick") {
+    definition(
+        name: "SmartStartCar",
+        namespace: "heidrickla",
+        author: "Lewis Heidrick",
+        description: "SmartStart Car Driver",
+        category: "Convenience",
+        parent: "heidrickla:SmartStart",
+        ) {
         capability "Switch"
         capability "Lock"
         capability "Refresh"
@@ -30,6 +39,7 @@ def installed() {
 }
     
 def updated() {
+    device.deviceNetworkId = ""
  checkRefresh(settings)
 }
 
