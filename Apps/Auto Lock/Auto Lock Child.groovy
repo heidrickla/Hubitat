@@ -10,7 +10,7 @@ import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.49"
+	state.version = "1.1.50"
 }
 
 definition(
@@ -491,17 +491,18 @@ def contactOpenHandler(evt) {
     if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {
         ifTrace("contactOpenHandler: Application is paused or disabled.")
     } else if (!settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("3") && (fireMedical?.currentValue("smokeSensor") == "detected")) {
+        unscheduleLockCommands()
         // Doing nothing until the sensor clears.
     } else if (!settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("5") && (lock1.currentValue("lock") == "locked")) {
+        unscheduleLockCommands()
         ifDebug("Door was opened while lock was locked. Performing a fast unlock and device refresh to get current state.")
         ifTrace("contactOpenHandler: Door was opened while lock was locked. Performing a fast unlock in case and device refresh to get current state.")
         if (settings.failureNotifications?.contains("5")) {sendFailureNotification("State sync fix triggered")}
-        unscheduleLockCommands()
         lock1Unlock()
         if (maxRetriesLock != null) {atomicState.countLock = maxRetriesLock} else {(atomicState.countLock = 0)}
         runIn(1, unlockDoor, [data: maxRetriesUnlock])
         lock1.refresh()
-    }
+    } else if (!settings.whenToLock?.contains("6") && settings.whenToLock?.contains("0") && settings.whenToLock?.contains("1")) {unscheduleLockCommands()}
 }
 
 def contactClosedHandler(evt) {
