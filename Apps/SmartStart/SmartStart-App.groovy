@@ -159,8 +159,9 @@ def GetRandomNumber() {
 //Response Method for Async HTTP Request
 def processCallBack(response, data) {
     log.debug "response = ${response} data = ${data}"
+    
     if (response.hasError()) {
-        log.error "RemoteStart - Response has error: $response.errorMessage"
+        log.error response.getErrorData()
         log.error "RemoteStart - Response has data: ${response.errorJson?.'ResponseStatus'}"
     } else {
         def results
@@ -213,7 +214,7 @@ def pollStatus(id) {
         uri: statusuri,
 		contentType: "application/json",
         //requestContentType: "application/x-www-form-urlencoded; charset=utf-8",
-        headers: ['Authorization': 'Bearer ${state.token}'],
+        headers: ["Content-Type": "application/json", "Authorization": "Bearer ${state.token}"],
         body: ['deviceId': taco, 'command': 'read_current']
     ]
     //Data to help the resposne function know what was being asked at the time, and from who (what child device)
@@ -253,7 +254,7 @@ def sendCommand(cmd, id) {
         uri: cmduri,
 		contentType: "application/json",
         //requestContentType: "application/x-www-form-urlencoded; charset=utf-8",
-        headers: ['Authorization': 'Bearer ${state.token}'],
+        headers: ["Content-Type": "application/json", "Authorization": "Bearer ${state.token}"],
         body: ['deviceId': taco2, 'command': cmdString]
     ]
     //Data to help the resposne function know what was being asked at the time, and from who (what child device)
