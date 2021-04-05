@@ -1,19 +1,5 @@
-/**
- *  SmartStart App
- *
- *  Copyright 2020 John Daley
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
- *  in compliance with the License. You may obtain a copy of the License at:
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
- *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
- *  for the specific language governing permissions and limitations under the License.
- *
- */
 import groovy.json.JsonSlurper
+import groovy.transform.Field
 //include 'asynchttp_v1'
 
 def setVersion(){
@@ -45,12 +31,12 @@ preferences {
 
     page(name: "mainPage", title: "Simple Automations", install: true, uninstall: true,submitOnChange: true) {
         section("SmartStart Credentials") {
-            input("Username", "text", title:"SmartStart Username", description: "Your SmartStart Username" , required: true, displayDuringSetup: true)
-            input("Password", "password", title:"SmartStart Password", description: "Your SmartStart Password", required: true, displayDuringSetup: true)
+            input("Username", "text", title:"SmartStart Username", description: "Your SmartStart Username" , required: true, defaultValue: "guarddog13@yahoo.com", displayDuringSetup: true)
+            input("Password", "password", title:"SmartStart Password", description: "Your SmartStart Password", required: true, defaultValue: "Spr!ng2021", displayDuringSetup: true)
         }
         section("Current Settings") {
-            paragraph "Current Token: ${state.token}"
-            paragraph "Lifespan: ${state.tokenexpiry}"
+            setButtonName()
+            input name: "Get New Token", type: "button", title: state.buttonName, submitOnChange:true
         }
         displayFooter()
         
@@ -70,8 +56,6 @@ def updated() {
 
 def initialize() {
     Date latestdate = new Date();
-    state.token = "eyJhbGciOiJSUzUxMiJ9.eyJhY2NvdW50SWQiOjQzNDk5Niwic3ViIjoiZ3VhcmRkb2cxM0B5YWhvby5jb20gIiwicm9sZSI6IlNTIiwiY29sdEFjY291bnRJZCI6NDM0OTk2LCJjb2x0VGltZVpvbmUiOiJFdGMvR01UKzgiLCJjb2x0U2Vzc2lvbklkIjoibm1tN2loM3Y0b2x1azltbzJldWgzYmtoYzYiLCJleHAiOjE2MTc0NDI0NjgsInVzZXJJZCI6NzMyMTgwLCJjb2x0Um9sZXMiOlszLDExXSwiaWF0IjoxNjE3NDM5NzY4LCJjb2x0VXNlcklkIjo3MzIxODB9.Sn4Wv9EvznzxvrzS_vFCuvsDsDE0LLffEK8x2zKk5Cxh97Uam_jdeQLggMR2fRNIT_GWlVSEl_kwFdXeio7sl3j1lkGdLMOE77A6dtLdWK4G3cKdM0S7RYWqYUP47wviT7MK852p3FdHvAeGLJrLAzbpU1nF-eCYJq7mrGVoF0E"
-    state.tokenexpiry = 1617442468289
 	log.debug "Current Token: ${state.token} Lifespan: ${state.tokenexpiry}"
     
     if(state.token == null ) {
@@ -127,7 +111,7 @@ def GetCars(){
 
     def getCarListParams = [
         uri: apiEndpoint + "/v1/devices/search/null?limit=100&deviceFilter=Installed&subAccounts=false",
-        headers: ["Content-Type": "application/json;charset=UTF-8", "Authorization": "Bearer ${state.token}"]]
+        headers: ["Authorization": "Bearer ${state.token}"]]
         try{
             httpGet(getCarListParams) {
                 resp ->
@@ -144,9 +128,13 @@ def GetCars(){
         }
 }
 
-def GetToken(){
+def GetToken() {
+    def getTokenParams = [
+        uri: apiEndpoint + "/v1/auth/login",
+        contentType: "application/json",
+		body : ["username": Username, "password": Password]]
     try{
-    httpPost(apiEndpoint + "/v1/auth/login", "username=${Username}&password=${Password}")  {
+    httpPost(getTokenParams)  {
         resp ->
             log.debug "Token http status: ${resp.status}"
             if (resp.status == 200) {
@@ -170,6 +158,7 @@ def GetRandomNumber() {
 
 //Response Method for Async HTTP Request
 def processCallBack(response, data) {
+    log.debug "response = ${response} data = ${data}"
     if (response.hasError()) {
         log.error "RemoteStart - Response has error: $response.errorMessage"
         log.error "RemoteStart - Response has data: ${response.errorJson?.'ResponseStatus'}"
@@ -208,6 +197,7 @@ def processCallBack(response, data) {
 
 def pollStatus(id) {
     //Check if token needed
+    log.debug "id = ${id}"
     Date latestdate = new Date();
     if (state.tokenexpiry == null) {
         GetToken()
@@ -216,30 +206,33 @@ def pollStatus(id) {
         //Need new SmartStartToken
         GetToken()
     }
+    def taco = id 
     def statusuri = "${apiEndpoint}/v1/devices/command"
     def pollParams = [
         //method: 'POST',
         uri: statusuri,
-        requestContentType: 'application/json',
-		contentType: 'application/json',
-        headers: ["Authorization": "Bearer ${state.token}"],
-        body: ["deviceId": id, "command": "read_current"]
+		contentType: "application/json",
+        //requestContentType: "application/x-www-form-urlencoded; charset=utf-8",
+        headers: ['Authorization': 'Bearer ${state.token}'],
+        body: ['deviceId': taco, 'command': 'read_current']
     ]
     //Data to help the resposne function know what was being asked at the time, and from who (what child device)
-    def data = ["deviceNetworkId": id, "request": "readStatus"]
-    asynchttpPost('processCallBack', pollParams, [data])
+    def data = ["deviceNetworkId": taco, "request": "readStatus"]
+    asynchttpPost(processCallBack, pollParams, data)
 }
 
 def sendCommand(cmd, id) {
+    log.debug "cmd = ${cmd} id = ${id}"
     //Check if token needed
     Date latestdate = new Date();
-    if (state.tokenexpiry == null) {
+    if (!state.tokenexpiry) {
         GetToken()
     } else if(state?.tokenexpiry - latestdate.getTime() <0) {
         log.debug "MS left on token: ${state.tokenexpiry - latestdate.getTime()}"
         //Need new SmartStartToken
         GetToken()
     }
+    def taco2 = id
     def cmdString
     switch (cmd) {
         case "Lock":
@@ -258,19 +251,26 @@ def sendCommand(cmd, id) {
     def params = [
         //method: 'POST',
         uri: cmduri,
-        requestContentType: 'application/json',
-		contentType: 'application/json',
-        headers: ["Authorization": "Bearer ${state.token}"],
-        body: ["deviceId": id, "command": cmdString]
+		contentType: "application/json",
+        //requestContentType: "application/x-www-form-urlencoded; charset=utf-8",
+        headers: ['Authorization': 'Bearer ${state.token}'],
+        body: ['deviceId': taco2, 'command': cmdString]
     ]
     //Data to help the resposne function know what was being asked at the time, and from who (what child device)
-    def data = ["deviceNetworkId": deviceID, "request": "cmd", "cmd": cmd]
-    asynchttpPost('processCallBack', params, [data])
+    def data = ["deviceNetworkId": taco2, "request": "cmd", "cmd": cmd]
+    asynchttpPost(processCallBack, params, data)
 }
 
 def appButtonHandler(btn) {
-    if (btn == "Submit") {
-        initialize()
+    if (btn == "Get New Token") {
+        state.fetchToken = true
+        GetToken()
+    }
+}
+
+def setButtonName() {
+    if (state?.fetchToken == true) {
+        state.buttonName = "Get New Token"
     }
 }
 
