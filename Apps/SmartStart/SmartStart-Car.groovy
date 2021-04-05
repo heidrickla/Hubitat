@@ -39,7 +39,7 @@ def installed() {
 }
     
 def updated() {
-    device.deviceNetworkId = ""
+    //deviceNetworkId = ""
  checkRefresh(settings)
 }
 
