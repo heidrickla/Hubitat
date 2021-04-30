@@ -10,7 +10,7 @@ import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.50"
+	state.version = "1.1.51"
 }
 
 definition(
@@ -145,15 +145,15 @@ def mainPage() {
     }
     section (title: "Notification Options:", hideable: true, hidden: hideNotificationSection()) {
         input "notifyOnEvent", "bool", title: "Enable Event Notifications?", submitOnChange: true, required:false, defaultValue: false
-        if (notifyOnEvent == true) {input "eventNotificationDevices", "capability.notification", title: "Event Notification Devices:", submitOnChange: false, multiple: true, required: false}
-        if (notifyOnEvent == true) {input "eventNotifications", "enum", title: "Select the types of events that you want to get notifications for:", required: false, multiple: true, submitOnChange: false, options: eventNotificationOptions}
+        if (notifyOnEvent == true) {input "eventNotificationDevices", "capability.notification", title: "Event Notification Devices:", submitOnChange: false, multiple: true, required: true}
+        if (notifyOnEvent == true) {input "eventNotifications", "enum", title: "Select the types of events that you want to get notifications for:", required: true, multiple: true, submitOnChange: false, options: eventNotificationOptions}
         input "notifyOnLowBattery", "bool", title: "Enable Low Battery Notifications?", submitOnChange: true, required:false, defaultValue: false
-        if (notifyOnLowBattery == true) {input "lowBatteryNotificationDevices", "capability.notification", title: "Low Battery Notification Devices:", submitOnChange: false, multiple: true, required: false}
-        if (notifyOnLowBattery == true) {input "lowBatteryDevicesToNotifyFor", "enum", title: "Select devices that you want to get notifications for:", required: false, multiple: true, submitOnChange: false, options: lowBatteryNotificationOptions}
+        if (notifyOnLowBattery == true) {input "lowBatteryNotificationDevices", "capability.notification", title: "Low Battery Notification Devices:", submitOnChange: false, multiple: true, required: true}
+        if (notifyOnLowBattery == true) {input "lowBatteryDevicesToNotifyFor", "enum", title: "Select devices that you want to get notifications for:", required: true, multiple: true, submitOnChange: false, options: lowBatteryNotificationOptions}
         if (notifyOnLowBattery == true) {input "lowBatteryAlertThreshold", "number", title: "Below what percentage do you want to be notified?", submitOnChange: false, required:true, defaultValue: 30}
         input "notifyOnFailure", "bool", title: "Enable Failure Notifications?", submitOnChange: true, required: false, defaultValue: false
-        if (notifyOnFailure == true) {input "failureNotificationDevices", "capability.notification", title: "Failure Notification Devices:", submitOnChange: false, multiple: true, required: false}
-        if (notifyOnFailure == true) {input "failureNotifications", "enum", title: "Failure Notifications:", required: false, multiple: true, submitOnChange: false, options: failureNotificationOptions}
+        if (notifyOnFailure == true) {input "failureNotificationDevices", "capability.notification", title: "Failure Notification Devices:", submitOnChange: false, multiple: true, required: true}
+        if (notifyOnFailure == true) {input "failureNotifications", "enum", title: "Failure Notifications:", required: true, multiple: true, submitOnChange: false, options: failureNotificationOptions}
     }
     section(title: "Logging Options:", hideable: true, hidden: hideLoggingSection()) {
         if (detailedInstructions == true) {paragraph "Enable Info logging for 30 minutes will enable info logs to show up in the Hubitat logs for 30 minutes after which it will turn them off. Useful for checking if the app is performing actions as expected."}
@@ -164,7 +164,7 @@ def mainPage() {
         input "isTrace", "bool", title: "Enable Trace logging for 30 minutes", submitOnChange: false, required:false, defaultValue: false
         if (detailedInstructions == true) {paragraph "Logging level is used to permanantly set your logging level for the application.  If it is set higher than any temporary logging options you enable, it will override them.  If it is set lower than temporary logging options, they will take priority until their timer expires.  This is useful if you prefer you logging set to a low level and then can use the logging toggles for specific use cases so you dont have to remember to go back in and change them later.  It's also useful if you are experiencing issues and need higher logging enabled for longer than 30 minutes."}
         input "ifLevel","enum", title: "Logging level", required: false, multiple: true, submitOnChange: false, options: logLevelOptions
-        if (enableHSMToggle == true) {input "isHSM", "bool", title: "Enable HSM logging", submitOnChange: true, required:false, defaultValue: false}
+        if (enableHSMToggle == true) {input "isHSM", "bool", title: "Enable HSM logging", submitOnChange: true, required:true, defaultValue: false}
         if ((enableHSMToggle == true) && (isHSM == true)) {input "hsmLogLevel","enum", title: "Show HSM Alerts in log as?", required: false, multiple: false, options: logLevelOptions}
     }
     displayFooter()
@@ -395,9 +395,9 @@ def lock1LockHandler(evt) {
     
     // Send Lock Notification
     ifDebug("${evt.descriptionText}")
-    if ((evt.type == 'physical') && evt.descriptionText.contains('locked') && settings.eventNotifications?.contains("1")) {sendEventNotification("${evt.descriptionText}")
-    } else if ((evt.type == 'digital') && evt.descriptionText.contains('locked') && settings.eventNotifications?.contains("3")) {sendEventNotification("${evt.descriptionText}")
-    } else if (evt.descriptionText.contains('locked') && (settings.eventNotifications?.contains("1") || settings.eventNotifications?.contains("3"))) {sendEventNotification("${evt.descriptionText}")}
+    if ((evt.type == 'physical') && evt.descriptionText.contains(' locked') && settings.eventNotifications?.contains("1")) {sendEventNotification("${evt.descriptionText}")
+    } else if ((evt.type == 'digital') && evt.descriptionText.contains(' locked') && settings.eventNotifications?.contains("3")) {sendEventNotification("${evt.descriptionText}")
+    } else if ((evt.descriptionText.contains(' locked') && evt.descriptionText.contains('physical') && settings.eventNotifications?.contains("1")) || (evt.descriptionText.contains(' locked') && evt.descriptionText.contains('digital') && settings.eventNotifications?.contains("3"))) {sendEventNotification("${evt.descriptionText}")}
     updateLabel()
     
     // Device Handler Action
@@ -436,7 +436,7 @@ def lock1UnlockHandler(evt) {
     ifDebug("${evt.descriptionText}")
     if ((evt.type == 'physical') && evt.descriptionText.contains('unlocked') && settings.eventNotifications?.contains("2")) {sendEventNotification("${evt.descriptionText}")
     } else if ((evt.type == 'digital') && evt.descriptionText.contains('unlocked') && settings.eventNotifications?.contains("4")) {sendEventNotification("${evt.descriptionText}")
-    } else if (evt.descriptionText.contains('unlocked') && (settings.eventNotifications?.contains("2") || settings.eventNotifications?.contains("4"))) {sendEventNotification("${evt.descriptionText}")}
+    } else if ((evt.descriptionText.contains('unlocked') && evt.descriptionText.contains('physical') && settings.eventNotifications?.contains("2")) || (evt.descriptionText.contains('unlocked') && evt.descriptionText.contains('digital') && settings.eventNotifications?.contains("4"))) {sendEventNotification("${evt.descriptionText}")}
     updateLabel()
     
     // Device Handler Action
@@ -702,25 +702,17 @@ def disabledHandler(evt) {
     } else if (state?.disabledSwitchStatus == null) {(state.disabledSwitchStatus = " ")}
     
     // Device Handler Action
-    if (getAllOk() == false) {ifTrace("TurnOffFanSwitchManual: getAllOk = ${getAllOk()} state?.pausedOrDisabled = ${state?.pausedOrDisabled}")
-        } else if (disabledSwitch) {
-            disabledSwitch.each { it ->
-            state.disabledSwitchState = it.currentValue("switch")
+    if (disabledSwitch) {
+        disabledSwitch.each { it ->
+        state.disabledSwitchState = it.currentValue("switch")
             if (state.disabledSwitchState == "on") {
-                ifTrace("disabledHandler: Disable switch turned on")
+                ifTrace("disabledHandler: Enabled by switch")
+                state.paused = false
                 state.disabled = false
-                if (state?.paused == true) {
-                    unscheduleLockCommands()
-                    state.status = "(Paused)"
-                    state.pausedOrDisabled = true
-                } else {
-                    state.paused = false
-                    state.disabled = false
-                    state.pausedOrDisabled = false
-                    if (!settings.whenToLock?.contains("6") && (lock1?.currentValue("lock") == "unlocked") && ((contact?.currentValue("contact") == "closed") || (contact == null))) {
-                        if (maxRetriesLock != null) {atomicState.countLock = maxRetriesLock} else {(atomicState.countLock = 0)}
-                        lockDoor()
-                    }
+                state.pausedOrDisabled = false
+                if (!settings.whenToLock?.contains("6") && (lock1?.currentValue("lock") == "unlocked") && ((contact?.currentValue("contact") == "closed") || (contact == null))) {
+                    if (maxRetriesLock != null) {atomicState.countLock = maxRetriesLock} else {(atomicState.countLock = 0)}
+                    lockDoor()
                 }
             } else if (state.disabledSwitchState == "off") {
                 unscheduleLockCommands()
@@ -731,6 +723,7 @@ def disabledHandler(evt) {
             }
         }
     }
+    updateLabel()
 }
 
 def enableHSMSwitchHandler(evt) {
@@ -908,16 +901,22 @@ def appButtonHandler(btn) {
         state.disabled = false
         unsubscribe()
         unschedule()
+        subscribe(disabledSwitch, "switch.on", disabledHandler)
+        subscribe(disabledSwitch, "switch.off", disabledHandler)
         updateLabel()
     } else if (btn == "Resume") {
         state.disabled = false
         state.paused = !state.paused
+        subscribe(disabledSwitch, "switch.on", disabledHandler)
+        subscribe(disabledSwitch, "switch.off", disabledHandler)
         initialize()
     } else if (btn == "Pause") {
         state.paused = !state.paused
         if (state?.paused) {
             unschedule()
             unsubscribe()
+            subscribe(disabledSwitch, "switch.on", disabledHandler)
+            subscribe(disabledSwitch, "switch.off", disabledHandler)
             updated()
         } else {
             initialize()
@@ -936,11 +935,15 @@ def setPauseButtonName() {
         state.pauseButtonName = "Disabled by Switch"
         unsubscribe()
         unschedule()
+		subscribe(disabledSwitch, "switch.on", disabledHandler)
+        subscribe(disabledSwitch, "switch.off", disabledHandler)
         updateLabel()
     } else if (state?.paused == true) {
         state.pauseButtonName = "Resume"
         updated()
         unschedule()
+		subscribe(disabledSwitch, "switch.on", disabledHandler)
+        subscribe(disabledSwitch, "switch.off", disabledHandler)
     } else {
         state.pauseButtonName = "Pause"
         updated()
