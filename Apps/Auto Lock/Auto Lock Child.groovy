@@ -397,7 +397,8 @@ def lock1LockHandler(evt) {
     ifDebug("${evt.descriptionText}")
     if ((evt.type == 'physical') && evt.descriptionText.contains(' locked') && settings.eventNotifications?.contains("1")) {sendEventNotification("${evt.descriptionText}")
     } else if ((evt.type == 'digital') && evt.descriptionText.contains(' locked') && settings.eventNotifications?.contains("3")) {sendEventNotification("${evt.descriptionText}")
-    } else if ((evt.descriptionText.contains(' locked') && evt.descriptionText.contains('physical') && settings.eventNotifications?.contains("1")) || (evt.descriptionText.contains(' locked') && evt.descriptionText.contains('digital') && settings.eventNotifications?.contains("3"))) {sendEventNotification("${evt.descriptionText}")}
+    } else if (evt.descriptionText.contains('physical') && evt.descriptionText.contains(' locked') && settings.eventNotifications?.contains("1")) {sendEventNotification("${evt.descriptionText}")
+    } else if (evt.descriptionText.contains('digital') && evt.descriptionText.contains(' locked') && settings.eventNotifications?.contains("3")) {sendEventNotification("${evt.descriptionText}")}
     updateLabel()
     
     // Device Handler Action
@@ -436,7 +437,8 @@ def lock1UnlockHandler(evt) {
     ifDebug("${evt.descriptionText}")
     if ((evt.type == 'physical') && evt.descriptionText.contains('unlocked') && settings.eventNotifications?.contains("2")) {sendEventNotification("${evt.descriptionText}")
     } else if ((evt.type == 'digital') && evt.descriptionText.contains('unlocked') && settings.eventNotifications?.contains("4")) {sendEventNotification("${evt.descriptionText}")
-    } else if ((evt.descriptionText.contains('unlocked') && evt.descriptionText.contains('physical') && settings.eventNotifications?.contains("2")) || (evt.descriptionText.contains('unlocked') && evt.descriptionText.contains('digital') && settings.eventNotifications?.contains("4"))) {sendEventNotification("${evt.descriptionText}")}
+    } else if (evt.descriptionText.contains('physical') && evt.descriptionText.contains('unlocked') && settings.eventNotifications?.contains("2")) {sendEventNotification("${evt.descriptionText}")
+    } else if (evt.descriptionText.contains('digital') && evt.descriptionText.contains('unlocked') && settings.eventNotifications?.contains("4")) {sendEventNotification("${evt.descriptionText}")}
     updateLabel()
     
     // Device Handler Action
