@@ -10,7 +10,7 @@ import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.51"
+	state.version = "1.1.52"
 }
 
 definition(
@@ -44,6 +44,8 @@ def mainPage() {
     section("") {
       input name: "Pause", type: "button", title: state.pauseButtonName, submitOnChange:true
       input "detailedInstructions", "bool", title: "Enable detailed instructions?", submitOnChange: true, required: false, defaultValue: false
+      input name: "Lock", type: "button", title: "Lock", submitOnChange:true
+      input name: "Unlock", type: "button", title: "Unlock", submitOnChange:true
     }
     section("") {
         if ((state.thisName == null) || (state.thisName == "null <span style=color:white> </span>")) {state.thisName = "Enter a name for this app."}
@@ -289,6 +291,7 @@ def updated() {
     if (state.fireMedicalStatus == null) {state.fireMedicalStatus = " "}
     if (state.fireMedicalBatteryStatus == null) {state.fireMedicalBatteryStatus = " "}
     if (state.deviceActivationSwitchStatus == null) {state.deviceActivationSwitchStatus = " "}
+    if (disabledSwitch?.currentValue("switch") == null) {state.disabledSwitchStatus = " "}
     if (state.disabledSwitchStatus == null) {state.disabledSwitchStatus = " "}
     if (state.enableHSMSwitchStatus == null) {state.enableHSMSwitchStatus = " "}
     unsubscribe()
@@ -899,7 +902,15 @@ void updateLabel() {
 //Enable, Resume, Pause button
 def appButtonHandler(btn) {
     ifTrace("appButtonHandler")
-    if (btn == "Disabled by Switch") {
+    if (btn == "Lock") {
+        lock1.lock()
+        ifDebug("Lock command sent")
+        updateLabel()
+    } else if (btn == "Unlock") {
+        lock1.unlock()
+        ifDebug("Unlock command sent")
+        updateLabel()
+    } else if (btn == "Disabled by Switch") {
         state.disabled = false
         unsubscribe()
         unschedule()
