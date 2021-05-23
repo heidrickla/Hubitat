@@ -905,11 +905,11 @@ def appButtonHandler(btn) {
     if (btn == "Lock") {
         lock1.lock()
         ifDebug("Lock command sent")
-        updateLabel()
+	runIn(5, updateLabel)
     } else if (btn == "Unlock") {
         lock1.unlock()
         ifDebug("Unlock command sent")
-        updateLabel()
+        runIn(5, updateLabel)
     } else if (btn == "Disabled by Switch") {
         state.disabled = false
         unsubscribe()
