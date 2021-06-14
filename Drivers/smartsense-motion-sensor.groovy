@@ -54,13 +54,6 @@ metadata {
 
 	preferences {
 		section {
-			image(name: 'educationalcontent', multiple: true, images: [
-					"http://cdn.device-gse.smartthings.com/Motion/Motion1.jpg",
-					"http://cdn.device-gse.smartthings.com/Motion/Motion2.jpg",
-					"http://cdn.device-gse.smartthings.com/Motion/Motion3.jpg"
-			])
-		}
-		section {
 			input "tempOffset", "number", title: "Temperature offset", description: "Select how many degrees to adjust the temperature.", range: "-100..100", displayDuringSetup: false
 		}
 	}
