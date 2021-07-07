@@ -10,7 +10,7 @@ import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.52"
+	state.version = "1.1.53"
 }
 
 definition(
@@ -69,19 +69,26 @@ def mainPage() {
         if (settings.whenToLock?.contains("4")) {input "deviceActivationToggle", "bool", title: "Invert Switch Triggered Action: ", submitOnChange: true, required: false, multiple: false, defaultValue: false}
         input "whenToLock", "enum", title: "When to lock?  Default: '(Lock when lock unlocks)'", options: whenToLockOptions, defaultValue: ["0"], required: true, multiple: true, submitOnChange:true
         if (detailedInstructions == true) {paragraph "Use seconds instead changes the timer used in the application to determine if the delay before performing locking actions will be based on minutes or seconds.  This will update the label on the next option to show its' setting."}
+        if (!settings.whenToLock?.contains("6") && !settings.whenToLock?.contains("7")) {input "minSecLock", "bool", title: "Use seconds instead?", submitOnChange:true, required: true, defaultValue: false}
+        if (!settings.whenToLock?.contains("6") && (detailedInstructions == true)) {paragraph "This value is used to determine the delay before locking actions occur. The minutes/seconds are determined by the Use seconds instead toggle."}
+        if (!settings.whenToLock?.contains("6") && !settings.whenToLock?.contains("7") && (minSecLock == false)) {input "durationLock", "number", title: "Lock it how many minutes later?", required: true, submitOnChange: true, defaultValue: 10, range: "1..84600"}
+        if (!settings.whenToLock?.contains("6") && !settings.whenToLock?.contains("7") && (minSecLock == true)) {input "durationLock", "number", title: "Lock it how many seconds later?", required: true, submitOnChange: true, defaultValue: 10, range: "1..84600"}
         if (settings.whenToLock?.contains("7")) {input name: "modesLockStatus", type: "mode", title: "Lock when entering these modes",required: false, multiple: true, submitOnChange: true}
         if (settings.whenToLock?.contains("7")) {input name: "enablePerModeLockDelay", type: "bool", title: "Enable per mode lock delay",required: false, defaultValue: false, submitOnChange: true
-            if (enablePerModeLockDelay == true) {input "minSecLock", "bool", title: "Use seconds instead?", submitOnChange:true, required: true, defaultValue: false
+            if (enablePerModeLockDelay == true) {input "minSecLock", "bool", title: "When locking with modes use seconds instead?", submitOnChange:true, required: true, defaultValue: false
                 perModeLockDelay()
-            } else if (enablePerModeLockDelay != true) {input "minSecLock", "bool", title: "Use seconds instead?", submitOnChange:true, required: true, defaultValue: false
+            } else if (enablePerModeLockDelay != true) {input "minSecLock", "bool", title: "When locking with modes use seconds instead?", submitOnChange:true, required: true, defaultValue: false
                 if (minSecLock == false) {input "durationLock", "number", title: "Lock it how many minutes later?", submitOnChange: false, required: true, defaultValue: 2, range: "1..84600"}
                 if (minSecLock == true) {input "durationLock", "number", title: "Lock it how many seconds later?", submitOnChange: false, required: true, defaultValue: 5, range: "1..84600"}
             }
         }
-        if (!settings.whenToLock?.contains("6")) {input "minSecLock", "bool", title: "Use seconds instead?", submitOnChange:true, required: true, defaultValue: false}
-        if (!settings.whenToLock?.contains("6") && (detailedInstructions == true)) {paragraph "This value is used to determine the delay before locking actions occur. The minutes/seconds are determined by the Use seconds instead toggle."}
-        if (!settings.whenToLock?.contains("6") && (minSecLock == false)) {input "durationLock", "number", title: "Lock it how many minutes later?", required: true, submitOnChange: true, defaultValue: 10, range: "1..84600"}
-        if (!settings.whenToLock?.contains("6") && (minSecLock == true)) {input "durationLock", "number", title: "Lock it how many seconds later?", required: true, submitOnChange: true, defaultValue: 10, range: "1..84600"}
+        if (!settings.whenToLock?.contains("6") && (detailedInstructions == true)) {paragraph "This toggle is used to enable the option to create a custom delay before locking actions occur when the switch is turned on. The minutes/seconds are determined by the Use seconds instead toggle."}
+        if (!settings.whenToLock?.contains("6")) {input "customDurationToggle", "bool", title: "Enable custom lock delay based on a switch when turned on?", required: false, submitOnChange: true, defaultValue: false}
+        if (!settings.whenToLock?.contains("6") && (customDurationToggle == true)) {input "customDurationDevice", "capability.switch", title: "Switch to enable a custom delay when turned on: ${state.customDurationDeviceStatus}", submitOnChange: true, required: false, multiple: false}
+        if (!settings.whenToLock?.contains("6") && (customDurationToggle == true)) {input "customMinSecLock", "bool", title: "Use seconds instead?", submitOnChange:true, required: true, defaultValue: false}
+        if (!settings.whenToLock?.contains("6") && (customDurationToggle == true) && (detailedInstructions == true)) {paragraph "This value is used to determine the delay before locking actions occur when the switch enables the custom delay. The minutes/seconds are determined by the Use seconds instead toggle."}
+        if (!settings.whenToLock?.contains("6") && (customDurationToggle == true) && (customMinSecLock == false)) {input "customDurationLock", "number", title: "Lock it how many minutes later?", required: true, submitOnChange: true, defaultValue: 10, range: "1..84600"}
+        if (!settings.whenToLock?.contains("6") && (customDurationToggle == true) && (customMinSecLock == true)) {input "customDurationLock", "number", title: "Lock it how many seconds later?", required: true, submitOnChange: true, defaultValue: 10, range: "1..84600"}
         if ((retryLock == true) && (detailedInstructions == true)) {paragraph "Enable retries if lock fails to change state enables all actions that try to lock the door up to the maximum number of retries.  If all retry attempts fail, a failure notice will appear in the logs.  Turning this toggle off causes any value in the Maximum number of retries to be ignored."}
         input "retryLock", "bool", title: "Enable retries if lock fails to change state.", required: false, submitOnChange: true, defaultValue: true
         if (detailedInstructions == true) {paragraph "Maximum number of retries is used to determine the limit of times that a locking action can attempt to perform an action.  This option is to prevent the lock from attempting over and over until the batteries are drained."}
@@ -269,6 +276,7 @@ def installed() {
     if (state.fireMedicalStatus == null) {state.fireMedicalStatus = " "}
     if (state.fireMedicalBatteryStatus == null) {state.fireMedicalBatteryStatus = " "}
     if (state.deviceActivationSwitchStatus == null) {state.deviceActivationSwitchStatus = " "}
+    if (state.customDurationDeviceStatus == null) {state.customDurationDeviceStatus = " "}
     if (state.disabledSwitchStatus == null) {state.disabledSwitchStatus = " "}
     if (state.enableHSMSwitchStatus == null) {state.enableHSMSwitchStatus = " "}
     initialize()
@@ -291,6 +299,7 @@ def updated() {
     if (state.fireMedicalStatus == null) {state.fireMedicalStatus = " "}
     if (state.fireMedicalBatteryStatus == null) {state.fireMedicalBatteryStatus = " "}
     if (state.deviceActivationSwitchStatus == null) {state.deviceActivationSwitchStatus = " "}
+    if (state.customDurationDeviceStatus == null) {state.customDurationDeviceStatus = " "}
     if (disabledSwitch?.currentValue("switch") == null) {state.disabledSwitchStatus = " "}
     if (state.disabledSwitchStatus == null) {state.disabledSwitchStatus = " "}
     if (state.enableHSMSwitchStatus == null) {state.enableHSMSwitchStatus = " "}
@@ -313,6 +322,8 @@ def initialize() {
     subscribe(disabledSwitch, "switch.off", disabledHandler)
     subscribe(deviceActivationSwitch, "switch.on", deviceActivationSwitchHandler)
     subscribe(deviceActivationSwitch, "switch.off", deviceActivationSwitchHandler)
+    if ((customDurationToggle == true) && customDurationDevice) {subscribe(customDurationDevice, "switch.on", customDurationDeviceHandler)}
+    if ((customDurationToggle == true) && customDurationDevice) {subscribe(customDurationDevice, "switch.off", customDurationDeviceHandler)}
     subscribe(deviceActivationToggle, "switch", deviceActivationToggleHandler)
     if (settings.whenToUnlock?.contains("3")) {subscribe(fireMedical, "contact.open", fireMedicalHandler)}
     if (settings.whenToUnlock?.contains("3")) {subscribe(fireMedical, "contact.closed", fireMedicalHandler)}
@@ -698,6 +709,26 @@ def deviceActivationToggleHandler(evt) {
     ifTrace("Action Toggled: ${evt.value}")
 }
 
+def customDurationDeviceHandler(evt) {
+    // Device Status
+    ifTrace("customDurationDeviceHandler: ${evt.value}")
+    if (evt.value) {state.customDurationDeviceStatus = "[${evt.value}]"
+    } else if (customDurationDevice?.currentValue("switch") != null) {state.customDurationDeviceStatus = "[${customDurationDevice.currentValue("switch")}]"
+    } else if (customDurationDevice?.latestValue("switch") != null) {statecustomDurationDeviceStatus = "[${customDurationDevice.latestValue("switch")}]"
+    } else if (state?.customDurationDeviceStatus == null) {(state.customDurationDeviceStatus = " ")}
+
+    // Device Handler Action
+    if (customDurationDevice) {
+        customDurationDevice.each { it ->
+            state.customDurationDeviceState = it.currentValue("switch")
+        }
+        if (!settings.whenToLock?.contains("6") && (customDurationToggle == true)) {
+            ifDebug("customDurationDeviceHandler: Enabling custom delay")
+            configureDelayLock()
+        }
+    }
+}
+
 def disabledHandler(evt) {
     // Device Status
     ifTrace("disabledHandler: ${evt.value}")
@@ -973,7 +1004,10 @@ def configureCountUnlock() {
 }
 
 def configureDelayLock() {
-    if ((minSecLock != true) && (durationLock != null)) {state.delayLock = (durationLock * 60)} else {state.delayLock = durationLock}
+    if ((customDurationToggle == true) && (customDurationDevice != null) && (customMinSecLock != true) && (customDurationDevice.currentValue("switch") == "on")) {state.delayLock = (customDurationLock * 60)
+    } else if ((customDurationToggle == true) && (customDurationDevice != null) && (customMinSecLock == true) && (customDurationDevice.currentValue("switch") == "on")) {state.delayLock = customDurationLock
+    } else if ((minSecLock != true) && (durationLock != null)) {state.delayLock = (durationLock * 60)
+    } else {state.delayLock = durationLock}
 }
 
 def configureDelayUnlock() {
