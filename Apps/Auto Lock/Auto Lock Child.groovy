@@ -10,7 +10,7 @@ import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.53"
+	state.version = "1.1.54"
 }
 
 definition(
@@ -38,7 +38,6 @@ preferences {
 def mainPage() {
     dynamicPage(name: "mainPage", install: true, uninstall: true, refreshInterval:0) {
         ifTrace("mainPage")
-        turnOffLoggingTogglesIn30()
         setPauseButtonName()
 
     section("") {
@@ -305,6 +304,10 @@ def updated() {
     if (state.enableHSMSwitchStatus == null) {state.enableHSMSwitchStatus = " "}
     unsubscribe()
     unschedule()
+    if (ifInfo) runIn(1800,infoOff)
+    if (ifDebug) runIn(1800,debugOff)
+    if (ifTrace) runIn(1800,traceOff)
+    if (ifHSM) runIn(1800,hsmOff)
     initialize()
 }
 
@@ -343,7 +346,6 @@ def initialize() {
     if (settings.whenToLock?.contains("7") || settings.whenToUnlock?.contains("7")) {subscribe(location, "mode", modeHandler)}
     if (((whenToLockHSM || whenToUnlockHSM) && enableHSMActions) || (settings.whenToLock?.contains("5") && (hsmLockStatus)) || (settings.whenToUnlock?.contains("0") && (hsmUnlockStatus))) {subscribe(location, "hsmStatus", hsmStatusHandler)}   //For app to subscribe to HSM status
     if ((whenToLockHSM || whenToUnlockHSM) && enableHSMActions) {subscribe(location, "hsmAlerts", hsmAlertHandler)}    //For app to subscribe to HSM alerts
-    turnOffLoggingTogglesIn30()
     getAllOk()
 }
 
@@ -1101,62 +1103,24 @@ private hhmm(time, fmt = "h:mm a") {
 
 private timeIntervalLabel() {(starting && ending) ? hhmm(starting) + "-" + hhmm(ending, "h:mm a z") : ""}
 
-def turnOffLoggingTogglesIn30() {
-    ifTrace("turnOffLoggingTogglesIn30")
-    if (!isInfo) {app.updateSetting("isInfo",[value:"false",type:"bool"])}
-    if (!isDebug) {app.updateSetting("isDebug",[value:"false",type:"bool"])}
-    if (!isTrace) {app.updateSetting("isTrace",[value:"false",type:"bool"])}
-    if (isInfo == true) {runIn(1800, infoOff)}
-    if (isDebug == true) {runIn(1800, debugOff)}
-    if (isTrace == true) {runIn(1800, traceOff)}
-}
-
 def infoOff() {
-    log.info "${state.thisName}: Info logging disabled."
     app.updateSetting("isInfo",[value:"false",type:"bool"])
+    if (isInfo == false) {log.warn "${state.thisName}: Info logging disabled."}
 }
 
 def debugOff() {
-    log.info "${state.thisName}: Debug logging disabled."
     app.updateSetting("isDebug",[value:"false",type:"bool"])
+    if (isDebug == false) {log.warn "${state.thisName}: Debug logging disabled."}
 }
 
 def traceOff() {
-    log.trace "${state.thisName}: Trace logging disabled."
     app.updateSetting("isTrace",[value:"false",type:"bool"])
+    if (isTrace == false) {log.warn "${state.thisName}: Trace logging disabled."}
 }
 
 def hsmOff() {
-    log.info "${state.thisName}: HSM logging disabled."
     app.updateSetting("isHSM",[value:"false",type:"bool"])
-}
-
-def disableInfoIn30() {
-    if (isInfo == true) {
-        runIn(1800, infoOff)
-        log.info "Info logging disabling in 30 minutes."
-    }
-}
-
-def disableDebugIn30() {
-    if (isDebug == true) {
-        runIn(1800, debugOff)
-        log.debug "Debug logging disabling in 30 minutes."
-    }
-}
-
-def disableTraceIn30() {
-    if (isTrace == true) {
-        runIn(1800, traceOff)
-        log.trace "Trace logging disabling in 30 minutes."
-    }
-}
-
-def disableHSMIn30() {
-    if (isHSM == true) {
-        runIn(1800, hsmOff)
-        log.info "HSM logging disabling in 30 minutes."
-    }
+    if (isHSM == false) {log.warn "${state.thisName}: HSM logging disabled."}
 }
 
 def ifWarn(msg) {log.warn "${state.thisName}: ${msg}"}
