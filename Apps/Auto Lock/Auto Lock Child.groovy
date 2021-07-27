@@ -10,7 +10,7 @@ import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.54"
+	state.version = "1.1.55"
 }
 
 definition(
@@ -58,10 +58,10 @@ def mainPage() {
         app.updateSetting("refresh",[value:"false",type:"bool"])
         if (detailedInstructions == true) {paragraph "This is the lock that all actions will activate against. The app watches for locked or unlocked status sent from the device.  If it cannot determine the current status, the last known status of the lock will be used.  If there is not a last status available and State sync fix is enabled it will attempt to determine its' state, otherwise it will default to a space. Once a device is selected, the current status will appear on the device.  The status can be updated by refreshing the page or clicking the refresh status toggle."}
         input "lock1", "capability.lock", title: "Lock: ${state.lock1LockStatus} ${state.lock1BatteryStatus}", submitOnChange: true, required: true
+        if (detailedInstructions == true) {paragraph "This is the contact sensor that will be used to determine if the door is open.  The lock will not lock while the door is open.  If it does become locked and Bolt/Frame strike protection is enabled, it will immediately try to unlock to keep from hitting the bolt against the frame. If you are having issues with your contact sensor or do not use one, it is recommended to disable Bolt/frame strike protection as it will interfere with the operation of the lock."}
+        if (settings.whenToLock?.contains("1") || settings.whenToUnlock?.contains("1")) {input "contact", "capability.contactSensor", title: "Door: ${state.contactContactStatus} ${state.contactBatteryStatus}", submitOnChange: true, required: false}
     }
     section(title: "Locking Options:", hideable: true, hidden: hideLockOptionsSection()) {
-        if (detailedInstructions == true) {paragraph "This is the contact sensor that will be used to determine if the door is open.  The lock will not lock while the door is open.  If it does become locked and Bolt/Frame strike protection is enabled, it will immediately try to unlock to keep from hitting the bolt against the frame. If you are having issues with your contact sensor or do not use one, it is recommended to disable Bolt/frame strike protection as it will interfere with the operation of the lock."}
-        if (settings.whenToLock?.contains("1")) {input "contact", "capability.contactSensor", title: "Door: ${state.contactContactStatus} ${state.contactBatteryStatus}", submitOnChange: true, required: false}
         if (detailedInstructions == true) {paragraph "This is the presence sensor that will be used to lock when presence is not present.  If using the combined presence feature then the lock will lock once all sensors have departed."}
         if (settings.whenToLock?.contains("2")) {input "lockPresence", "capability.presenceSensor", title: "Presence: ${state.lockPresenceStatus} ${state.lockPresenceBatteryStatus}", submitOnChange: true, required: false, multiple: true}
         if (settings.whenToLock?.contains("4")) {input "deviceActivationSwitch", "capability.switch", title: "Switch Triggered Action: ${state.deviceActivationSwitchStatus}", submitOnChange: true, required: false, multiple: false}
@@ -81,6 +81,15 @@ def mainPage() {
                 if (minSecLock == true) {input "durationLock", "number", title: "Lock it how many seconds later?", submitOnChange: false, required: true, defaultValue: 5, range: "1..84600"}
             }
         }
+        if (!settings.whenToLock?.contains("6") && (detailedInstructions == true)) {paragraph "This toggle is used to enable the option to create a custom delay before locking actions occur when motion changes to inactive. The minutes/seconds are determined by the Use seconds instead toggle."}
+        if (!settings.whenToLock?.contains("6")) {input "motionDurationToggle", "bool", title: "Enable custom lock delay based on a motion sensor when it changes to active?", required: false, submitOnChange: true, defaultValue: false}
+        if (!settings.whenToLock?.contains("6") && (motionDurationToggle == true)) {input "motionDurationDevice", "capability.motionSensor", title: "Motion sensor to enable a custom delay when motion changes to active: ${state.motionDurationDeviceStatus}", submitOnChange: true, required: false, multiple: true}
+        if (!settings.whenToLock?.contains("6") && (motionDurationToggle == true)) {input "motionMinSecLock", "bool", title: "Use seconds instead?", submitOnChange:true, required: true, defaultValue: false}
+        if (!settings.whenToLock?.contains("6") && (motionDurationToggle == true) && (detailedInstructions == true)) {paragraph "This value is used to determine the delay before locking actions occur when the motion sensor enables the custom delay. The minutes/seconds are determined by the Use seconds instead toggle."}
+        if (!settings.whenToLock?.contains("6") && (motionDurationToggle == true) && (motionMinSecLock == false)) {input "motionDurationLock", "number", title: "Lock when inactive how many minutes later? The timer is extended if motion is retriggered.", required: true, submitOnChange: true, defaultValue: 10, range: "1..84600"}
+        if (!settings.whenToLock?.contains("6") && (motionDurationToggle == true) && (motionMinSecLock == true)) {input "motionDurationLock", "number", title: "Lock when inactive how many seconds later? The timer is extended if motion is retriggered.", required: true, submitOnChange: true, defaultValue: 10, range: "1..84600"}
+        if (!settings.whenToLock?.contains("6") && (motionDurationToggle == true) && (detailedInstructions == true)) {paragraph "This value is used as a failsafe to set the lock timer back to the normal timer, to compensate for false positives, and lock the door. The timer is extended if motion is retriggered."}
+        if (!settings.whenToLock?.contains("6") && (motionDurationToggle == true)) {input "motionDurationReset", "number", title: "Reset motion duration timer and lock the door how many minutes later when no motion is detected?", required: true, submitOnChange: true, defaultValue: 360, range: "1..84600"}
         if (!settings.whenToLock?.contains("6") && (detailedInstructions == true)) {paragraph "This toggle is used to enable the option to create a custom delay before locking actions occur when the switch is turned on. The minutes/seconds are determined by the Use seconds instead toggle."}
         if (!settings.whenToLock?.contains("6")) {input "customDurationToggle", "bool", title: "Enable custom lock delay based on a switch when turned on?", required: false, submitOnChange: true, defaultValue: false}
         if (!settings.whenToLock?.contains("6") && (customDurationToggle == true)) {input "customDurationDevice", "capability.switch", title: "Switch to enable a custom delay when turned on: ${state.customDurationDeviceStatus}", submitOnChange: true, required: false, multiple: false}
@@ -275,6 +284,7 @@ def installed() {
     if (state.fireMedicalStatus == null) {state.fireMedicalStatus = " "}
     if (state.fireMedicalBatteryStatus == null) {state.fireMedicalBatteryStatus = " "}
     if (state.deviceActivationSwitchStatus == null) {state.deviceActivationSwitchStatus = " "}
+    if (state.motionDurationDeviceStatus == null) {state.motionDurationDeviceStatus = " "}
     if (state.customDurationDeviceStatus == null) {state.customDurationDeviceStatus = " "}
     if (state.disabledSwitchStatus == null) {state.disabledSwitchStatus = " "}
     if (state.enableHSMSwitchStatus == null) {state.enableHSMSwitchStatus = " "}
@@ -298,6 +308,7 @@ def updated() {
     if (state.fireMedicalStatus == null) {state.fireMedicalStatus = " "}
     if (state.fireMedicalBatteryStatus == null) {state.fireMedicalBatteryStatus = " "}
     if (state.deviceActivationSwitchStatus == null) {state.deviceActivationSwitchStatus = " "}
+    if (state.customDurationDeviceStatus == null) {state.motionDurationDeviceStatus = " "}
     if (state.customDurationDeviceStatus == null) {state.customDurationDeviceStatus = " "}
     if (disabledSwitch?.currentValue("switch") == null) {state.disabledSwitchStatus = " "}
     if (state.disabledSwitchStatus == null) {state.disabledSwitchStatus = " "}
@@ -325,6 +336,8 @@ def initialize() {
     subscribe(disabledSwitch, "switch.off", disabledHandler)
     subscribe(deviceActivationSwitch, "switch.on", deviceActivationSwitchHandler)
     subscribe(deviceActivationSwitch, "switch.off", deviceActivationSwitchHandler)
+    if ((motionDurationToggle == true) && motionDurationDevice) {subscribe(motionDurationDevice, "motion.active", motionDurationDeviceHandler)}
+    if ((motionDurationToggle == true) && motionDurationDevice) {subscribe(motionDurationDevice, "motion.inactive", motionDurationDeviceHandler)}
     if ((customDurationToggle == true) && customDurationDevice) {subscribe(customDurationDevice, "switch.on", customDurationDeviceHandler)}
     if ((customDurationToggle == true) && customDurationDevice) {subscribe(customDurationDevice, "switch.off", customDurationDeviceHandler)}
     subscribe(deviceActivationToggle, "switch", deviceActivationToggleHandler)
@@ -423,11 +436,14 @@ def lock1LockHandler(evt) {
     } else if (settings.whenToUnlock?.contains("6")) {
     // Unlocking is disabled. Doing nothing.
     } else if (settings.whenToUnlock?.contains("1") && (contact?.currentValue("contact") == "open")) {
-        ifDebug("lock1LockHandler:  Lock was locked while Door was open. Performing a fast unlock to prevent hitting the bolt against the frame.")
-        unscheduleLockCommands()
-        lock1Unlock()
-        state.delayUnlock = 1
-        runIn(state.delayUnlock, unlockDoor, [data: maxRetriesUnlock])
+        contact.refresh()
+        if (contact?.currentValue("contact") == "open") {
+            ifDebug("lock1LockHandler:  Lock was locked while Door was open. Performing a fast unlock to prevent hitting the bolt against the frame.")
+            unscheduleLockCommands()
+            lock1Unlock()
+            state.delayUnlock = 1
+            runIn(state.delayUnlock, unlockDoor, [data: maxRetriesUnlock])
+        }
     } else if (settings.whenToUnlock?.contains("3") && (fireMedical?.currentValue("smokeSensor") == "detected")) {
         ifDebug("lock1LockHandler: Lock was locked while the Fire/Medical Sensor detected smoke. Performing a fast unlock.")
         unscheduleLockCommands()
@@ -466,9 +482,12 @@ def lock1UnlockHandler(evt) {
         // Keeping door unlocked until the sensor clears.
         unscheduleLockCommands()
     } else if (settings.whenToLock?.contains("0") && (contact?.currentValue("contact") == "closed") || (contact == null)) {
-        unscheduleLockCommands()
-        if (maxRetriesLock != null) {atomicState.countLock = maxRetriesLock} else {(atomicState.countLock = 0)}
-        lockDoor(maxRetriesLock)
+        contact.refresh()
+        if (contact?.currentValue("contact") == "closed") {
+            unscheduleLockCommands()
+            if (maxRetriesLock != null) {atomicState.countLock = maxRetriesLock} else {(atomicState.countLock = 0)}
+            lockDoor(maxRetriesLock)
+        }
     }
 }
 
@@ -711,12 +730,37 @@ def deviceActivationToggleHandler(evt) {
     ifTrace("Action Toggled: ${evt.value}")
 }
 
+def motionDurationDeviceHandler(evt) {
+    // Device Status
+    ifTrace("motionDurationDeviceHandler: ${evt.value}")
+    if (evt.value) {state.motionDurationDeviceStatus = "[${evt.value}]"
+    } else if (state?.motionDurationDeviceStatus == null) {(state.motionDurationDeviceStatus = " ")}
+
+    // Device Handler Action
+    if (motionDurationDevice) {
+        motionDurationDevice.each { it ->
+            state.motionDurationDeviceState = it.currentValue("motion")
+        }
+        if (!settings.whenToLock?.contains("6") && (motionDurationToggle == true)) {
+            configureMotionDelayLock()
+            if (state.motionDurationDeviceStatus == "inactive") {
+                ifDebug("motionDurationDeviceHandler: Enabling motion delay")
+                runin(motionDurationReset, configureDelayLock)
+                runin(motionDurationReset, lockDoor)
+            } else if (state.motionDurationDeviceStatus == "active") {
+                unschedule(configureDelayLock)
+                unschedule(lockDoor)
+            }
+        }
+    }
+}
+
 def customDurationDeviceHandler(evt) {
     // Device Status
     ifTrace("customDurationDeviceHandler: ${evt.value}")
     if (evt.value) {state.customDurationDeviceStatus = "[${evt.value}]"
     } else if (customDurationDevice?.currentValue("switch") != null) {state.customDurationDeviceStatus = "[${customDurationDevice.currentValue("switch")}]"
-    } else if (customDurationDevice?.latestValue("switch") != null) {statecustomDurationDeviceStatus = "[${customDurationDevice.latestValue("switch")}]"
+    } else if (customDurationDevice?.latestValue("switch") != null) {state.customDurationDeviceStatus = "[${customDurationDevice.latestValue("switch")}]"
     } else if (state?.customDurationDeviceStatus == null) {(state.customDurationDeviceStatus = " ")}
 
     // Device Handler Action
@@ -1003,6 +1047,15 @@ def configureCountLock() {
 
 def configureCountUnlock() {
     if (atomicState.countUnlock == null) {atomicState.countUnlock = 0}
+}
+
+def configureMotionDelayLock() {
+    if ((motionDurationToggle == true) && (motionDurationDevice != null) && (motionMinSecLock != true) && (state.motionDurationDeviceStatus == "active")) {state.delayLock = (motionDurationLock * 60)
+    } else if ((motionDurationToggle == true) && (motionDurationDevice != null) && (motionMinSecLock == true) && (state.motionDurationDeviceStatus == "active")) {state.delayLock = motionDurationLock
+    } else if ((motionDurationToggle == true) && (motionDurationDevice != null) && (motionMinSecLock != true) && (state.motionDurationDeviceStatus == "inactive")) {state.delayLock = (motionDurationLock * 60)
+    } else if ((motionDurationToggle == true) && (motionDurationDevice != null) && (motionMinSecLock == true) && (state.motionDurationDeviceStatus == "inactive")) {state.delayLock = motionDurationLock
+    } else if ((minSecLock != true) && (durationLock != null)) {state.delayLock = (durationLock * 60)
+    } else {state.delayLock = durationLock}
 }
 
 def configureDelayLock() {
