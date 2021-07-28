@@ -10,7 +10,7 @@ import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.55"
+	state.version = "1.1.56"
 }
 
 definition(
@@ -72,6 +72,7 @@ def mainPage() {
         if (!settings.whenToLock?.contains("6") && (detailedInstructions == true)) {paragraph "This value is used to determine the delay before locking actions occur. The minutes/seconds are determined by the Use seconds instead toggle."}
         if (!settings.whenToLock?.contains("6") && !settings.whenToLock?.contains("7") && (minSecLock == false)) {input "durationLock", "number", title: "Lock it how many minutes later?", required: true, submitOnChange: true, defaultValue: 10, range: "1..84600"}
         if (!settings.whenToLock?.contains("6") && !settings.whenToLock?.contains("7") && (minSecLock == true)) {input "durationLock", "number", title: "Lock it how many seconds later?", required: true, submitOnChange: true, defaultValue: 10, range: "1..84600"}
+        
         if (settings.whenToLock?.contains("7")) {input name: "modesLockStatus", type: "mode", title: "Lock when entering these modes",required: false, multiple: true, submitOnChange: true}
         if (settings.whenToLock?.contains("7")) {input name: "enablePerModeLockDelay", type: "bool", title: "Enable per mode lock delay",required: false, defaultValue: false, submitOnChange: true
             if (enablePerModeLockDelay == true) {input "minSecLock", "bool", title: "When locking with modes use seconds instead?", submitOnChange:true, required: true, defaultValue: false
@@ -119,7 +120,7 @@ def mainPage() {
         if (detailedInstructions == true) {paragraph "State sync fix is used when the lock is locked but the door becomes opened.  Since this shouldn't happen it immediately unlocks the lock and tries to refresh the lock if successful it updates the app status.  If the unlock attempt fails, it then will attempt to retry and follows any unlock delays or retry restrictions.  This option allows you to use the lock and unlock functionality and still be able to use the app when you experience sensor problems by disabling this option."}
         if (detailedInstructions == true) {paragraph "Prevent unlocking under any circumstances is used when you want to disable all unlock functionality in the app. It overrides all unlock settings including Fire/Medical panic unlock."}
         input "whenToUnlock", "enum", title: "When to unlock?  Default: '(Prevent unlocking under any circumstances)'", options: whenToUnlockOptions, defaultValue: ["6"], required: true, multiple: true, submitOnChange:true
-        if (!settings.whenToUnlock?.contains("7")) {
+        if (!settings.whenToUnlock?.contains("6")) {
         if (detailedInstructions == true) {paragraph "Use seconds instead changes the timer used in the application to determine if the delay before performing unlocking actions will be based on minutes or seconds. This will update the label on the next option to show its' setting."}
         if (settings.whenToUnlock?.contains("7")) {input name: "modesUnlockStatus", type: "mode", title: "Unlock when entering these modes",required: false, multiple: true, submitOnChange: true}
         if (settings.whenToUnlock?.contains("7")) {input name: "enablePerModeUnlockDelay", type: "bool", title: "Enable per mode unlock delay",required: false, defaultValue: false, submitOnChange: true
@@ -478,6 +479,9 @@ def lock1UnlockHandler(evt) {
         ifTrace("lock1UnlockHandler: Application is paused or disabled.")
     } else if (settings.whenToLock?.contains("6")) {
         // Locking is disabled. Doing nothing.
+    } else if ((motionDurationToggle == true) && (state.motionActiveFlag == "active")){
+        // Motion is active. Doing nothing.
+        unscheduleLockCommands()
     } else if (settings.whenToUnlock?.contains("3") && (fireMedical?.currentValue("smokeSensor") == "detected")) {
         // Keeping door unlocked until the sensor clears.
         unscheduleLockCommands()
@@ -557,6 +561,9 @@ def contactClosedHandler(evt) {
         ifTrace("contactContactHandler: Application is paused or disabled.")
     } else if (!settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("3") && (fireMedical?.currentValue("smokeSensor") == "detected")) {
         // Doing nothing until the sensor clears.
+    } else if ((motionDurationToggle == true) && (state.motionActiveFlag == "active")){
+        // Motion is active. Doing nothing.
+        unscheduleLockCommands()
     } else if (!settings.whenToLock?.contains("6") && settings.whenToLock?.contains("1") && (lock1?.currentValue("lock") == "unlocked") && (contact?.currentValue("contact") == "closed")) {
         unscheduleLockCommands()
         if (maxRetriesLock != null) {atomicState.countLock = maxRetriesLock} else {(atomicState.countLock = 0)}
@@ -589,6 +596,9 @@ def lockPresenceHandler(evt) {
     
     // Device Handler Action
     if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {ifTrace("lockPresenceHanlder: Application is paused or disabled.")
+    } else if ((motionDurationToggle == true) && (state.motionActiveFlag == "active")){
+        // Motion is active. Doing nothing.
+        unscheduleLockCommands()                                                                     
     } else if (!settings.whenToLock?.contains("6") && settings.whenToLock?.contains("2") && (evt.value == "not present")) {
         if (settings.eventNotifications?.contains("7")) {sendEventNotification("Presence Departure Lock")}
         unscheduleLockCommands()
@@ -744,12 +754,14 @@ def motionDurationDeviceHandler(evt) {
         if (!settings.whenToLock?.contains("6") && (motionDurationToggle == true)) {
             configureMotionDelayLock()
             if (state.motionDurationDeviceStatus == "inactive") {
-                ifDebug("motionDurationDeviceHandler: Enabling motion delay")
+                ifDebug("motionDurationDeviceHandler: Motion inactive, configuring delay.")
                 runin(motionDurationReset, configureDelayLock)
-                runin(motionDurationReset, lockDoor)
+                runin(motionDurationReset, motionReset)
             } else if (state.motionDurationDeviceStatus == "active") {
+                state.motionActiveFlag == "active"
                 unschedule(configureDelayLock)
                 unschedule(lockDoor)
+                unschedule(lock1Lock)
             }
         }
     }
@@ -842,8 +854,18 @@ def lockDoor(countLock) {
         } else if (settings.whenToLock?.contains("1") && (contact?.currentValue("contact") == "open") && (lock1?.currentValue("lock") == "unlocked")) {
             ifTrace("lockDoor: Door is open. Waiting for door to close before locking.")
             unscheduleLockCommands()
-        } else if ((contact?.currentValue("contact") == "closed") || (contact == null)) {
-            if (state?.delayLock == 0) {ifDebug("Locking door now.")} else if (minSecLock == true) {ifDebug("Locking door in ${durationLock} seconds.")} else {ifDebug("Locking door in ${durationLock} minutes.")}
+        } else if ((motionDurationToggle == true) && (state.motionActiveFlag == "active")){
+            // Motion is active. Doing nothing.
+            unscheduleLockCommands()
+        } else if ((lock1?.currentValue("lock") == "unlocked") && ((contact?.currentValue("contact") == "closed") || (contact == null))) {
+            if (state?.delayLock == 0) {
+                ifDebug("Locking door now.")
+                lock1Lock()
+            } else if (minSecLock == true) {
+                ifDebug("Locking door in ${durationLock} seconds.")
+            } else {
+                ifDebug("Locking door in ${durationLock} minutes.")
+            }
             configureDelayLock()
             if ((retryLock == false) && (lock1?.currentValue("lock") != "locked")) {
                 runIn(state.delayLock, lock1Lock)
@@ -930,6 +952,10 @@ def unscheduleLockCommands() {
     unschedule(lock1Lock)
 }
 
+def motionReset() {
+    state.motionActiveFlag == "inactive"
+}
+        
 def sendEventNotification(msg) {
     if ((notifyOnEvent == true) && eventNotificationDevices) {
         ifTrace("Sending Event Notification: ${msg}")
