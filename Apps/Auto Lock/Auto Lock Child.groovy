@@ -10,7 +10,7 @@ import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.56"
+	state.version = "1.1.57"
 }
 
 definition(
@@ -86,11 +86,11 @@ def mainPage() {
         if (!settings.whenToLock?.contains("6")) {input "motionDurationToggle", "bool", title: "Enable custom lock delay based on a motion sensor when it changes to active?", required: false, submitOnChange: true, defaultValue: false}
         if (!settings.whenToLock?.contains("6") && (motionDurationToggle == true)) {input "motionDurationDevice", "capability.motionSensor", title: "Motion sensor to enable a custom delay when motion changes to active: ${state.motionDurationDeviceStatus}", submitOnChange: true, required: false, multiple: true}
         if (!settings.whenToLock?.contains("6") && (motionDurationToggle == true)) {input "motionMinSecLock", "bool", title: "Use seconds instead?", submitOnChange:true, required: true, defaultValue: false}
-        if (!settings.whenToLock?.contains("6") && (motionDurationToggle == true) && (detailedInstructions == true)) {paragraph "This value is used to determine the delay before locking actions occur when the motion sensor enables the custom delay. The minutes/seconds are determined by the Use seconds instead toggle."}
+        if (!settings.whenToLock?.contains("6") && (motionDurationToggle == true) && (detailedInstructions == true)) {paragraph "This value is used to determine the delay before locking actions occur when the motion sensor enables the custom delay. The minutes/seconds are determined by the Use seconds instead toggle.  Keep in mind of the motion reset timer of the sensor.  If your sensors reset delay is longer than the custom timer, then the sensor will never reset to detect motion before triggering."}
         if (!settings.whenToLock?.contains("6") && (motionDurationToggle == true) && (motionMinSecLock == false)) {input "motionDurationLock", "number", title: "Lock when inactive how many minutes later? The timer is extended if motion is retriggered.", required: true, submitOnChange: true, defaultValue: 10, range: "1..84600"}
         if (!settings.whenToLock?.contains("6") && (motionDurationToggle == true) && (motionMinSecLock == true)) {input "motionDurationLock", "number", title: "Lock when inactive how many seconds later? The timer is extended if motion is retriggered.", required: true, submitOnChange: true, defaultValue: 10, range: "1..84600"}
         if (!settings.whenToLock?.contains("6") && (motionDurationToggle == true) && (detailedInstructions == true)) {paragraph "This value is used as a failsafe to set the lock timer back to the normal timer, to compensate for false positives, and lock the door. The timer is extended if motion is retriggered."}
-        if (!settings.whenToLock?.contains("6") && (motionDurationToggle == true)) {input "motionDurationReset", "number", title: "Reset motion duration timer and lock the door how many minutes later when no motion is detected?", required: true, submitOnChange: true, defaultValue: 360, range: "1..84600"}
+        if (!settings.whenToLock?.contains("6") && (motionDurationToggle == true)) {input "motionDurationReset", "number", title: "Reset motion duration timer and lock the door how many minutes later when no motion is detected? This is used to protect against false triggers.", required: true, submitOnChange: true, defaultValue: 360, range: "1..84600"}
         if (!settings.whenToLock?.contains("6") && (detailedInstructions == true)) {paragraph "This toggle is used to enable the option to create a custom delay before locking actions occur when the switch is turned on. The minutes/seconds are determined by the Use seconds instead toggle."}
         if (!settings.whenToLock?.contains("6")) {input "customDurationToggle", "bool", title: "Enable custom lock delay based on a switch when turned on?", required: false, submitOnChange: true, defaultValue: false}
         if (!settings.whenToLock?.contains("6") && (customDurationToggle == true)) {input "customDurationDevice", "capability.switch", title: "Switch to enable a custom delay when turned on: ${state.customDurationDeviceStatus}", submitOnChange: true, required: false, multiple: false}
@@ -478,19 +478,19 @@ def lock1UnlockHandler(evt) {
     if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {
         ifTrace("lock1UnlockHandler: Application is paused or disabled.")
     } else if (settings.whenToLock?.contains("6")) {
-        // Locking is disabled. Doing nothing.
-    } else if ((motionDurationToggle == true) && (state.motionActiveFlag == "active")){
-        // Motion is active. Doing nothing.
+        ifTrace("Locking is disabled. Doing nothing.")
+    } else if ((motionDurationToggle == true) && ((state.motionActiveFlag == "active") || (state.motionDurationDeviceStatus == "active"))){
+        ifTrace("Motion is active. Doing nothing.")
         unscheduleLockCommands()
     } else if (settings.whenToUnlock?.contains("3") && (fireMedical?.currentValue("smokeSensor") == "detected")) {
-        // Keeping door unlocked until the sensor clears.
+        ifTrace("Keeping door unlocked until the sensor clears.")
         unscheduleLockCommands()
     } else if (settings.whenToLock?.contains("0") && (contact?.currentValue("contact") == "closed") || (contact == null)) {
-        contact.refresh()
         if (contact?.currentValue("contact") == "closed") {
             unscheduleLockCommands()
             if (maxRetriesLock != null) {atomicState.countLock = maxRetriesLock} else {(atomicState.countLock = 0)}
             lockDoor(maxRetriesLock)
+            ifTrace("Locking Door.")
         }
     }
 }
@@ -747,22 +747,27 @@ def motionDurationDeviceHandler(evt) {
     } else if (state?.motionDurationDeviceStatus == null) {(state.motionDurationDeviceStatus = " ")}
 
     // Device Handler Action
-    if (motionDurationDevice) {
+    motionReset()
+    if (motionDurationDevice && !settings.whenToLock?.contains("6") && (motionDurationToggle == true)) {
         motionDurationDevice.each { it ->
             state.motionDurationDeviceState = it.currentValue("motion")
+            if (state.motionDurationDeviceState == "active") {
+                (state.motionActiveFlag = "active")
+                ifDebug("state.motionActiveFlag == active")
+                unschedule(configureMotionDelayLock)
+                unschedule(motionReset)
+                unschedule(LockDoor)
+                configureMotionDelayLock()
+                ifDebug("Resetting motion countdown timer.")
+            } 
         }
-        if (!settings.whenToLock?.contains("6") && (motionDurationToggle == true)) {
-            configureMotionDelayLock()
-            if (state.motionDurationDeviceStatus == "inactive") {
-                ifDebug("motionDurationDeviceHandler: Motion inactive, configuring delay.")
-                runin(motionDurationReset, configureDelayLock)
-                runin(motionDurationReset, motionReset)
-            } else if (state.motionDurationDeviceStatus == "active") {
-                state.motionActiveFlag == "active"
-                unschedule(configureDelayLock)
-                unschedule(lockDoor)
-                unschedule(lock1Lock)
-            }
+    }
+    if (!settings.whenToLock?.contains("6") && (motionDurationToggle == true)) {
+       if (state.motionActiveFlag != "active") {
+            ifDebug("motionDurationDeviceHandler: Motion inactive, configuring delay.")
+            runIn(motionDurationLock, configureMotionDelayLock)
+            runIn(motionDurationLock, motionReset)
+            runIn(motionDurationLock, lockDoor)
         }
     }
 }
@@ -779,6 +784,9 @@ def customDurationDeviceHandler(evt) {
     if (customDurationDevice) {
         customDurationDevice.each { it ->
             state.customDurationDeviceState = it.currentValue("switch")
+            if (state.disabledSwitchState == "on") {
+                configureDelayLock()
+            }
         }
         if (!settings.whenToLock?.contains("6") && (customDurationToggle == true)) {
             ifDebug("customDurationDeviceHandler: Enabling custom delay")
@@ -854,7 +862,7 @@ def lockDoor(countLock) {
         } else if (settings.whenToLock?.contains("1") && (contact?.currentValue("contact") == "open") && (lock1?.currentValue("lock") == "unlocked")) {
             ifTrace("lockDoor: Door is open. Waiting for door to close before locking.")
             unscheduleLockCommands()
-        } else if ((motionDurationToggle == true) && (state.motionActiveFlag == "active")){
+        } else if (motionDurationDevice && !settings.whenToLock?.contains("6") && (motionDurationToggle == true) && (state.motionActiveFlag == "active")){
             // Motion is active. Doing nothing.
             unscheduleLockCommands()
         } else if ((lock1?.currentValue("lock") == "unlocked") && ((contact?.currentValue("contact") == "closed") || (contact == null))) {
@@ -893,8 +901,13 @@ def lockDoor(countLock) {
 
 def lock1Lock() {
     ifTrace("lock1Lock")
-    lock1.lock()
-    ifDebug("Lock command sent")
+    if ((motionDurationToggle == true) && ((state.motionActiveFlag == "active") || (state.motionDurationDeviceStatus == "active"))){
+        ifTrace("Motion is active. Doing nothing.")
+        unscheduleLockCommands()
+    } else {
+        lock1.lock()
+        ifDebug("Lock command sent")
+    }
     updateLabel()
 }
 
@@ -950,10 +963,6 @@ def unscheduleLockCommands() {
     unschedule(lock1Unlock)
     unschedule(lockDoor)
     unschedule(lock1Lock)
-}
-
-def motionReset() {
-    state.motionActiveFlag == "inactive"
 }
         
 def sendEventNotification(msg) {
@@ -1076,12 +1085,16 @@ def configureCountUnlock() {
 }
 
 def configureMotionDelayLock() {
-    if ((motionDurationToggle == true) && (motionDurationDevice != null) && (motionMinSecLock != true) && (state.motionDurationDeviceStatus == "active")) {state.delayLock = (motionDurationLock * 60)
-    } else if ((motionDurationToggle == true) && (motionDurationDevice != null) && (motionMinSecLock == true) && (state.motionDurationDeviceStatus == "active")) {state.delayLock = motionDurationLock
-    } else if ((motionDurationToggle == true) && (motionDurationDevice != null) && (motionMinSecLock != true) && (state.motionDurationDeviceStatus == "inactive")) {state.delayLock = (motionDurationLock * 60)
-    } else if ((motionDurationToggle == true) && (motionDurationDevice != null) && (motionMinSecLock == true) && (state.motionDurationDeviceStatus == "inactive")) {state.delayLock = motionDurationLock
+    if ((motionDurationToggle == true) && (motionDurationDevice != null) && (motionMinSecLock != true) && (state.motionActiveFlag == "active")) {state.delayLock = (motionDurationLock * 60)
+    } else if ((motionDurationToggle == true) && (motionDurationDevice != null) && (motionMinSecLock == true) && (state.motionActiveFlag == "active")) {state.delayLock = motionDurationLock
+    } else if ((motionDurationToggle == true) && (motionDurationDevice != null) && (motionMinSecLock != true) && (state.motionActiveFlag == "inactive")) {state.delayLock = (motionDurationLock * 60)
+    } else if ((motionDurationToggle == true) && (motionDurationDevice != null) && (motionMinSecLock == true) && (state.motionActiveFlag == "inactive")) {state.delayLock = motionDurationLock
     } else if ((minSecLock != true) && (durationLock != null)) {state.delayLock = (durationLock * 60)
     } else {state.delayLock = durationLock}
+}
+    
+def motionReset() {
+    (state.motionActiveFlag = "inactive")
 }
 
 def configureDelayLock() {
