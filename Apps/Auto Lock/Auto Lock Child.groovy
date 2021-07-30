@@ -10,7 +10,7 @@ import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.57"
+	state.version = "1.1.58"
 }
 
 definition(
