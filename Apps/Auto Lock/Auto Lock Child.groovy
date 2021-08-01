@@ -10,7 +10,7 @@ import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.58"
+	state.version = "1.1.59"
 }
 
 definition(
@@ -110,7 +110,7 @@ def mainPage() {
     section(title: "Unlocking Options:", hideable: true, hidden: hideUnlockOptionsSection()) {
         if (detailedInstructions == true) {if (settings.whenToUnlock?.contains("2")) {paragraph "This sensor is used for presence unlock triggers."}}
         if (settings.whenToUnlock?.contains("2")) {input "unlockPresence", "capability.presenceSensor", title: "Presence: ${state.unlockPresenceStatus} ${state.unlockPresenceBatteryStatus}", submitOnChange: true, required: false, multiple: true}
-        if (settings.whenToUnlock?.contains("3")) {input "fireMedical", "capability.smokeDetector", title: "Fire/Medical: ${state.fireMedicalStatus} ${state.fireMedicalBatteryStatus}", submitOnChange: true, required: false, multiple: false}
+        if (settings.whenToUnlock?.contains("3")) {input "fireMedical", "capability.smokeDetector", title: "Fire/Medical: ${state.fireMedicalStatus} ${state.fireMedicalBatteryStatus}", submitOnChange: true, required: false, multiple: true}
         if (settings.whenToUnlock?.contains("4")) {input "deviceActivationSwitch", "capability.switch", title: "Switch Triggered Action: ${state.deviceActivationSwitchStatus}", submitOnChange: true, required: false, multiple: false}
         if (settings.whenToUnlock?.contains("4")) {input "deviceActivationToggle", "bool", title: "Invert Switch Triggered Action: ", submitOnChange: true, required: false, multiple: false, defaultValue: false}
         if (detailedInstructions == true) {paragraph "Bolt/Frame strike protection detects when the lock is locked and the door is open and immediately unlocks it to prevent it striking the frame.  This special case uses a modified delay timer that ignores the Unlock it how many minutes/seconds later and Delay between retries option.  It does obey the Maximum number of retries though."}
@@ -148,8 +148,9 @@ def mainPage() {
     }
     section(title: "Only Run When:", hideable: true, hidden: hideOptionsSection()) {
         def timeLabel = timeIntervalLabel()
-        if (detailedInstructions == true) {paragraph "Switch to Enable and Disable this app prevents the app from performing any actions other than status updates for the lock and contact sensor state and battery state on the app page."}
-        input "disabledSwitch", "capability.switch", title: "Switch to Enable and Disable this app ${state.disabledSwitchStatus}", submitOnChange: false, required: false, multiple: false
+        if (detailedInstructions == true) {paragraph "Switch to Enable and Disable this app prevents the app from performing any actions other than status updates for the lock and contact sensor state and battery state on the app page. On disables the app."}
+        input "disabledSwitch", "capability.switch", title: "Switch to Enable and Disable this app ${state.disabledSwitchStatus}", submitOnChange: true, required: false, multiple: false
+        if (disabledSwitch) {input "invertDisabled", "bool", title: "Invert Disabled Switch? Off disables the app.", submitOnChange:true, required: false, defaultValue: false}
         if (detailedInstructions == true) {paragraph "Only during a certain time is used to restrict the app to running outside of the assigned times. You can use this to prevent false presence triggers while your sleeping from unlocking the door."}
         href "timeIntervalInput", title: "Only during a certain time", description: timeLabel ?: "Tap to set", state: timeLabel ? "complete" : null
         if (detailedInstructions == true) {paragraph "Only on certain days of the week restricts the app from running outside of the assigned days. Useful if you work around the yard frequently on the weekends and want to keep your door unlocked and just want the app during the week."}
@@ -342,8 +343,9 @@ def initialize() {
     if ((customDurationToggle == true) && customDurationDevice) {subscribe(customDurationDevice, "switch.on", customDurationDeviceHandler)}
     if ((customDurationToggle == true) && customDurationDevice) {subscribe(customDurationDevice, "switch.off", customDurationDeviceHandler)}
     subscribe(deviceActivationToggle, "switch", deviceActivationToggleHandler)
-    if (settings.whenToUnlock?.contains("3")) {subscribe(fireMedical, "contact.open", fireMedicalHandler)}
-    if (settings.whenToUnlock?.contains("3")) {subscribe(fireMedical, "contact.closed", fireMedicalHandler)}
+    if (settings.whenToUnlock?.contains("3")) {subscribe(fireMedical, "smokeSensor.detected", fireMedicalHandler)}
+    if (settings.whenToUnlock?.contains("3")) {subscribe(fireMedical, "smokeSensor.tested", fireMedicalHandler)}
+    if (settings.whenToUnlock?.contains("3")) {subscribe(fireMedical, "smokeSensor.clear", fireMedicalHandler)}
     if (settings.whenToUnlock?.contains("3")) {subscribe(fireMedical, "battery", fireMedicalBatteryHandler)}
     subscribe(lock1, "lock.locked", lock1LockHandler)
     subscribe(lock1, "lock.unlocked", lock1UnlockHandler)
@@ -425,7 +427,8 @@ def lock1LockHandler(evt) {
     
     // Send Lock Notification
     ifDebug("${evt.descriptionText}")
-    if ((evt.type == 'physical') && evt.descriptionText.contains(' locked') && settings.eventNotifications?.contains("1")) {sendEventNotification("${evt.descriptionText}")
+    if (evt.descriptionText == null) {
+    } else if ((evt.type == 'physical') && evt.descriptionText.contains(' locked') && settings.eventNotifications?.contains("1")) {sendEventNotification("${evt.descriptionText}")
     } else if ((evt.type == 'digital') && evt.descriptionText.contains(' locked') && settings.eventNotifications?.contains("3")) {sendEventNotification("${evt.descriptionText}")
     } else if (evt.descriptionText.contains('physical') && evt.descriptionText.contains(' locked') && settings.eventNotifications?.contains("1")) {sendEventNotification("${evt.descriptionText}")
     } else if (evt.descriptionText.contains('digital') && evt.descriptionText.contains(' locked') && settings.eventNotifications?.contains("3")) {sendEventNotification("${evt.descriptionText}")}
@@ -468,7 +471,8 @@ def lock1UnlockHandler(evt) {
     
     // Send Unlock Notification
     ifDebug("${evt.descriptionText}")
-    if ((evt.type == 'physical') && evt.descriptionText.contains('unlocked') && settings.eventNotifications?.contains("2")) {sendEventNotification("${evt.descriptionText}")
+    if (evt.descriptionText == null) {
+    } else if ((evt.type == 'physical') && evt.descriptionText.contains('unlocked') && settings.eventNotifications?.contains("2")) {sendEventNotification("${evt.descriptionText}")
     } else if ((evt.type == 'digital') && evt.descriptionText.contains('unlocked') && settings.eventNotifications?.contains("4")) {sendEventNotification("${evt.descriptionText}")
     } else if (evt.descriptionText.contains('physical') && evt.descriptionText.contains('unlocked') && settings.eventNotifications?.contains("2")) {sendEventNotification("${evt.descriptionText}")
     } else if (evt.descriptionText.contains('digital') && evt.descriptionText.contains('unlocked') && settings.eventNotifications?.contains("4")) {sendEventNotification("${evt.descriptionText}")}
@@ -655,8 +659,8 @@ def fireMedicalHandler(evt) {
     // Device Status
     ifTrace("fireMedicalHandler: ${evt.value}")
     if (evt.value) {state.fireMedicalStatus = "[${evt.value}]"
-    } else if (fireMedical?.currentValue("contact") != null) {state.fireMedicalStatus = "[${fireMedical.currentValue("contact")}]"
-    } else if (fireMedical?.latestValue("contact") != null) {state.fireMedicalStatus = "[${fireMedical.latestValue("contact")}]"
+    } else if (fireMedical?.currentValue("smokeSensor") != null) {state.fireMedicalStatus = "[${fireMedical.currentValue("smokeSensor")}]"
+    } else if (fireMedical?.latestValue("smokeSensor") != null) {state.fireMedicalStatus = "[${fireMedical.latestValue("smokeSensor")}]"
     } else if (state?.fireMedicalStatus == null) {(state.fireMedicalStatus = " ")
         log.warn "${evt.value}"
     }
@@ -667,13 +671,14 @@ def fireMedicalHandler(evt) {
     if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {
         ifTrace("fireMedicalHandler: Application is paused or disabled.")
         if (settings.failureNotifications?.contains("3")) {sendFailureNotification("Fire/Medical panic triggered unlock but application is paused or disabled")}
-    } else if (settings.whenToUnlock?.contains("3") && !settings.whenToUnlock?.contains("6") && (fireMedical?.currentValue("contact") == "open")) {
+    } else if (settings.whenToUnlock?.contains("3") && !settings.whenToUnlock?.contains("6") && ("${evt.value}" == "detected")) {
         ifDebug("fireMedicalHandler:  Fast unlocking because of an emergency.")
         if (settings.eventNotifications?.contains("5")) {sendEventNotification("Fire/Medical Panic Triggered.")}
         unscheduleLockCommands()
         if (maxRetriesUnlock != null) {atomicState.countUnlock = maxRetriesUnlock} else {(atomicState.countUnlock = 0)}
         lock1Unlock()
         runIn(1, unlockDoor, [data: maxRetriesUnlock])
+    } else if (fireMedical?.currentValue("smokeSensor") == "tested") {ifInfo("A smoke alarm test was detected.")
     } else if (lock1?.currentValue("lock") == "unlocked") {ifTrace("The door is open and the lock is unlocked. Nothing to do.")}
 }
 
@@ -804,7 +809,7 @@ def disabledHandler(evt) {
     } else if (state?.disabledSwitchStatus == null) {(state.disabledSwitchStatus = " ")}
     
     // Device Handler Action
-    if (disabledSwitch) {
+    if (disabledSwitch && invertDisabled == false) {
         disabledSwitch.each { it ->
         state.disabledSwitchState = it.currentValue("switch")
             if (state.disabledSwitchState == "on") {
@@ -817,6 +822,26 @@ def disabledHandler(evt) {
                     lockDoor()
                 }
             } else if (state.disabledSwitchState == "off") {
+                unscheduleLockCommands()
+                state.pauseButtonName = "Disabled by Switch"
+                state.status = "(Disabled)"
+                ifTrace("disabledHandler: (Disabled)")
+                state.disabled = true
+            }
+        }
+    } else if (disabledSwitch && invertDisabled == true) {
+        disabledSwitch.each { it ->
+        state.disabledSwitchState = it.currentValue("switch")
+            if (state.disabledSwitchState == "off") {
+                ifTrace("disabledHandler: Enabled by switch")
+                state.paused = false
+                state.disabled = false
+                state.pausedOrDisabled = false
+                if (!settings.whenToLock?.contains("6") && (lock1?.currentValue("lock") == "unlocked") && ((contact?.currentValue("contact") == "closed") || (contact == null))) {
+                    if (maxRetriesLock != null) {atomicState.countLock = maxRetriesLock} else {(atomicState.countLock = 0)}
+                    lockDoor()
+                }
+            } else if (state.disabledSwitchState == "on") {
                 unscheduleLockCommands()
                 state.pauseButtonName = "Disabled by Switch"
                 state.status = "(Disabled)"
