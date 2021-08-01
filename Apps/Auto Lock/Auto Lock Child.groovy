@@ -10,7 +10,7 @@ import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.59"
+	state.version = "1.1.58"
 }
 
 definition(
@@ -148,9 +148,9 @@ def mainPage() {
     }
     section(title: "Only Run When:", hideable: true, hidden: hideOptionsSection()) {
         def timeLabel = timeIntervalLabel()
-        if (detailedInstructions == true) {paragraph "Switch to Enable and Disable this app prevents the app from performing any actions other than status updates for the lock and contact sensor state and battery state on the app page. On disables the app."}
+        if (detailedInstructions == true) {paragraph "Switch to Enable and Disable this app prevents the app from performing any actions other than status updates for the lock and contact sensor state and battery state on the app page. Enable/Disable switch Off disables the app."}
         input "disabledSwitch", "capability.switch", title: "Switch to Enable and Disable this app ${state.disabledSwitchStatus}", submitOnChange: true, required: false, multiple: false
-        if (disabledSwitch) {input "invertDisabled", "bool", title: "Invert Disabled Switch? Off disables the app.", submitOnChange:true, required: false, defaultValue: false}
+        if (disabledSwitch) {input "invertDisabled", "bool", title: "Invert Disabled Switch? Enable/Disable switch On disables the app.", submitOnChange:true, required: false, defaultValue: false}
         if (detailedInstructions == true) {paragraph "Only during a certain time is used to restrict the app to running outside of the assigned times. You can use this to prevent false presence triggers while your sleeping from unlocking the door."}
         href "timeIntervalInput", title: "Only during a certain time", description: timeLabel ?: "Tap to set", state: timeLabel ? "complete" : null
         if (detailedInstructions == true) {paragraph "Only on certain days of the week restricts the app from running outside of the assigned days. Useful if you work around the yard frequently on the weekends and want to keep your door unlocked and just want the app during the week."}
