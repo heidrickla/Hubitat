@@ -10,7 +10,7 @@ import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.59"
+	state.version = "1.1.61"
 }
 
 definition(
@@ -242,6 +242,7 @@ def mainPage() {
 ]
 
 @Field static List<Map<String,String>> eventNotificationOptions = [
+    ["0": "Bolt/frame strike protection Triggered"],
     ["1": "Lock Physical"],
     ["2": "Unlock Physical"],
     ["3": "Lock Digital"],
@@ -268,7 +269,9 @@ def mainPage() {
     ["3": "Fire/Medical panic triggered unlock but application is paused or disabled"],
     ["4": "Switch triggered lock/unlock but application is paused or disabled"],
     ["5": "State sync fix triggered"],
-    ["6": "Unlock triggered while Preventing unlock under any circumstances was enabled"]
+    ["6": "Unlock triggered while Preventing unlock under any circumstances was enabled"],
+    ["7": "Lock attemted to lock while door was open."],
+    ["0": "Door is open. Waiting for door to close before locking."]
 ]
 
 def installed() {
@@ -343,9 +346,10 @@ def initialize() {
     if ((customDurationToggle == true) && customDurationDevice) {subscribe(customDurationDevice, "switch.on", customDurationDeviceHandler)}
     if ((customDurationToggle == true) && customDurationDevice) {subscribe(customDurationDevice, "switch.off", customDurationDeviceHandler)}
     subscribe(deviceActivationToggle, "switch", deviceActivationToggleHandler)
-    if (settings.whenToUnlock?.contains("3")) {subscribe(fireMedical, "smokeSensor.detected", fireMedicalHandler)}
-    if (settings.whenToUnlock?.contains("3")) {subscribe(fireMedical, "smokeSensor.tested", fireMedicalHandler)}
-    if (settings.whenToUnlock?.contains("3")) {subscribe(fireMedical, "smokeSensor.clear", fireMedicalHandler)}
+    if (settings.whenToUnlock?.contains("3")) {subscribe(fireMedical, "smoke.detected", fireMedicalHandler)}
+    if (settings.whenToUnlock?.contains("3")) {subscribe(fireMedical, "smoke.tested", fireMedicalHandler)}
+    if (settings.whenToUnlock?.contains("3")) {subscribe(fireMedical, "smoke.clear", fireMedicalHandler)}
+    if (settings.whenToUnlock?.contains("3")) {subscribe(fireMedical, "carbonMonoxide.clear", fireMedicalHandler)}
     if (settings.whenToUnlock?.contains("3")) {subscribe(fireMedical, "battery", fireMedicalBatteryHandler)}
     subscribe(lock1, "lock.locked", lock1LockHandler)
     subscribe(lock1, "lock.unlocked", lock1UnlockHandler)
@@ -440,15 +444,15 @@ def lock1LockHandler(evt) {
     } else if (settings.whenToUnlock?.contains("6")) {
     // Unlocking is disabled. Doing nothing.
     } else if (settings.whenToUnlock?.contains("1") && (contact?.currentValue("contact") == "open")) {
-        contact.refresh()
         if (contact?.currentValue("contact") == "open") {
             ifDebug("lock1LockHandler:  Lock was locked while Door was open. Performing a fast unlock to prevent hitting the bolt against the frame.")
+            if (settings.eventNotifications?.contains("0")) {sendEventNotification("Lock was locked while Door was open. Performing a fast unlock to prevent hitting the bolt against the frame.")}
             unscheduleLockCommands()
             lock1Unlock()
             state.delayUnlock = 1
             runIn(state.delayUnlock, unlockDoor, [data: maxRetriesUnlock])
         }
-    } else if (settings.whenToUnlock?.contains("3") && (fireMedical?.currentValue("smokeSensor") == "detected")) {
+    } else if (settings.whenToUnlock?.contains("3") && (state.fireMedicalStatus == "detected")) {
         ifDebug("lock1LockHandler: Lock was locked while the Fire/Medical Sensor detected smoke. Performing a fast unlock.")
         unscheduleLockCommands()
         lock1Unlock()
@@ -486,7 +490,7 @@ def lock1UnlockHandler(evt) {
     } else if ((motionDurationToggle == true) && ((state.motionActiveFlag == "active") || (state.motionDurationDeviceStatus == "active"))){
         ifTrace("Motion is active. Doing nothing.")
         unscheduleLockCommands()
-    } else if (settings.whenToUnlock?.contains("3") && (fireMedical?.currentValue("smokeSensor") == "detected")) {
+    } else if (settings.whenToUnlock?.contains("3") && (state.fireMedicalStatus == "detected")) {
         ifTrace("Keeping door unlocked until the sensor clears.")
         unscheduleLockCommands()
     } else if (settings.whenToLock?.contains("0") && (contact?.currentValue("contact") == "closed") || (contact == null)) {
@@ -516,7 +520,7 @@ def lock1BatteryHandler(evt) {
 
 def lock1JammedHandler(evt) {
     if (evt.value) {
-	if (settings.failureNotifications?.contains("0") && (lock1.currentValue("lock") == "unknown")) {sendEventNotification("Lock is possibly jammed.")}
+	if (settings.failureNotifications?.contains("0") && (lock1.currentValue("lock") == "unknown")) {sendFailureNotification("Lock is possibly jammed.")}
         if (!settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("8") && (retryLock == true)) {unlockDoor()}
         if (!settings.whenToLock?.contains("6") && (retryLock == true)) {runIn(3, lockDoor)}
     }
@@ -535,7 +539,7 @@ def contactOpenHandler(evt) {
     // Device Handler Action
     if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {
         ifTrace("contactOpenHandler: Application is paused or disabled.")
-    } else if (!settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("3") && (fireMedical?.currentValue("smokeSensor") == "detected")) {
+    } else if (!settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("3") && (state.fireMedicalStatus == "detected")) {
         unscheduleLockCommands()
         // Doing nothing until the sensor clears.
     } else if (!settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("5") && (lock1.currentValue("lock") == "locked")) {
@@ -563,7 +567,7 @@ def contactClosedHandler(evt) {
     // Device Handler Action
     if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {
         ifTrace("contactContactHandler: Application is paused or disabled.")
-    } else if (!settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("3") && (fireMedical?.currentValue("smokeSensor") == "detected")) {
+    } else if (!settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("3") && (state.fireMedicalStatus == "detected")) {
         // Doing nothing until the sensor clears.
     } else if ((motionDurationToggle == true) && (state.motionActiveFlag == "active")){
         // Motion is active. Doing nothing.
@@ -659,8 +663,6 @@ def fireMedicalHandler(evt) {
     // Device Status
     ifTrace("fireMedicalHandler: ${evt.value}")
     if (evt.value) {state.fireMedicalStatus = "[${evt.value}]"
-    } else if (fireMedical?.currentValue("smokeSensor") != null) {state.fireMedicalStatus = "[${fireMedical.currentValue("smokeSensor")}]"
-    } else if (fireMedical?.latestValue("smokeSensor") != null) {state.fireMedicalStatus = "[${fireMedical.latestValue("smokeSensor")}]"
     } else if (state?.fireMedicalStatus == null) {(state.fireMedicalStatus = " ")
         log.warn "${evt.value}"
     }
@@ -678,7 +680,7 @@ def fireMedicalHandler(evt) {
         if (maxRetriesUnlock != null) {atomicState.countUnlock = maxRetriesUnlock} else {(atomicState.countUnlock = 0)}
         lock1Unlock()
         runIn(1, unlockDoor, [data: maxRetriesUnlock])
-    } else if (fireMedical?.currentValue("smokeSensor") == "tested") {ifInfo("A smoke alarm test was detected.")
+    } else if ("${evt.value}" == "tested") {ifInfo("A smoke alarm test was detected.")
     } else if (lock1?.currentValue("lock") == "unlocked") {ifTrace("The door is open and the lock is unlocked. Nothing to do.")}
 }
 
@@ -870,7 +872,9 @@ def lockDoor(countLock) {
     ifTrace("lockDoor")
     if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {ifTrace("lockDoor: Application is paused or disabled.")
     } else if (getHSMLockOk() == false) {ifDebug("Unable to lock the door. HSM Status is ${location.HSMStatus}.")
-    } else if (settings.whenToLock?.contains("6")) {ifDebug("Prevent locking under any circumstances is enabled.")
+    } else if (settings.whenToLock?.contains("6")) {
+        ifDebug("Prevent locking under any circumstances is enabled.")
+        if (settings.failureNotifications?.contains("6")) {sendFailureNotification("Lock triggered while Preventing lock under any circumstances was enabled.")}
     } else if (lock1?.currentValue("lock") == "locked") {
         state.status = "(Locked)"
         unscheduleLockCommands()
@@ -881,11 +885,13 @@ def lockDoor(countLock) {
     } else {
         if (!settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("1") && ((contact?.currentValue("contact") == "open") || (contact?.currentValue("contact") == "opened")) && (lock1?.currentValue("lock") == "locked")) {
             ifTrace("lockDoor: Lock was locked while Door was open. Performing a fast unlock to prevent hitting the bolt against the frame.")
+            if (settings.eventNotifications?.contains("0")) {sendEventNotification("Lock was locked while Door was open. Performing a fast unlock to prevent hitting the bolt against the frame.")}
             unscheduleLockCommands()
             lock1Unlock()
             lock1.refresh()
         } else if (settings.whenToLock?.contains("1") && (contact?.currentValue("contact") == "open") && (lock1?.currentValue("lock") == "unlocked")) {
             ifTrace("lockDoor: Door is open. Waiting for door to close before locking.")
+            if (settings.failureNotifications?.contains("8")) {sendFailureNotification("Door is open. Waiting for door to close before locking.")}
             unscheduleLockCommands()
         } else if (motionDurationDevice && !settings.whenToLock?.contains("6") && (motionDurationToggle == true) && (state.motionActiveFlag == "active")){
             // Motion is active. Doing nothing.
@@ -914,7 +920,7 @@ def lockDoor(countLock) {
                 i = (delayBetweenRetriesLock + state.delayLock)
                 runIn(i, lockDoor)
             } else if ((retryLock == true) && (atomicState.countLock < 0) && (lock1?.currentValue("lock") != "locked")) {
-                if (settings.eventNotifications?.contains("1")) {sendEventNotification("Maximum Lock Retries Exceeded.")}
+                if (settings.failureNotifications?.contains("1")) {sendFailureNotification("Maximum Lock Retries Exceeded.")}
                 if (maxRetriesLock != null) {atomicState.countLock = maxRetriesLock} else {(atomicState.countLock = 0)}
             }
         } else {
@@ -941,6 +947,7 @@ def unlockDoor(countUnlock) {
     if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {ifTrace("unlockDoor: Application is paused or disabled.")
     } else if (getHSMUnlockOk() == false) {ifDebug("Unable to unlock the door. HSM Status is ${location.HSMStatus}.")
     } else if (settings.whenToUnlock?.contains("6")) {ifDebug("Prevent unlocking under any circumstances is enabled.")
+        if (settings.failureNotifications?.contains("6")) {sendFailureNotification("Unlock triggered while Preventing unlock under any circumstances was enabled.")}
     } else if (lock1?.currentValue("lock") == "unlocked") {
         state.status = "(Unlocked)"
         unscheduleLockCommands()
@@ -968,12 +975,12 @@ def unlockDoor(countUnlock) {
             i = (delayBetweenRetriesLock + state.delayLock)
             runIn(i, unlockDoor)
         } else if ((retryUnlock == true) && (atomicState.countUnlock < 0) && (lock1?.currentValue("lock") != "unlocked")) {
-            if (settings.eventNotifications?.contains("1")) {sendEventNotification("Maximum Unlock Retries Exceeded.")}
+            if (settings.failureNotifications?.contains("2")) {sendFailureNotification("Maximum Unlock Retries Exceeded.")}
             unscheduleLockCommands()
             if (maxRetriesUnlock != null) {atomicState.countUnlock = maxRetriesUnlock} else {(atomicState.countUnlock = 0)}
         }
     }
-    if (settings.failureNotifications?.contains("0") && (lock1.currentValue("lock") == "unknown")) {sendEventNotification("Lock is possibly jammed.")}
+    if (settings.failureNotifications?.contains("0") && (lock1.currentValue("lock") == "unknown")) {sendFailureNotification("Lock is possibly jammed.")}
 }
 
 def lock1Unlock() {
