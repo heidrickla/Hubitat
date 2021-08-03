@@ -10,7 +10,7 @@ import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.61"
+	state.version = "1.1.62"
 }
 
 definition(
@@ -363,18 +363,18 @@ def initialize() {
     if (settings.whenToUnlock?.contains("2")) {subscribe(unlockPresence, "presence.present", unlockPresenceHandler)}
     if (settings.whenToUnlock?.contains("2")) {subscribe(unlockPresence, "battery", unlockPresenceBatteryHandler)}
     subscribe(enableHSMSwitch, "switch", enableHSMHandler)
-    if (settings.whenToLock?.contains("7") || settings.whenToUnlock?.contains("7")) {subscribe(location, "mode", modeHandler)}
+    if (settings.whenToLock?.contains("7")) {subscribe(location, "mode", modeLockHandler)}
+    if (settings.whenToUnlock?.contains("7")) {subscribe(location, "mode", modeUnlockHandler)}
     if (((whenToLockHSM || whenToUnlockHSM) && enableHSMActions) || (settings.whenToLock?.contains("5") && (hsmLockStatus)) || (settings.whenToUnlock?.contains("0") && (hsmUnlockStatus))) {subscribe(location, "hsmStatus", hsmStatusHandler)}   //For app to subscribe to HSM status
     if ((whenToLockHSM || whenToUnlockHSM) && enableHSMActions) {subscribe(location, "hsmAlerts", hsmAlertHandler)}    //For app to subscribe to HSM alerts
     getAllOk()
 }
 
 // Device Handlers
-def modeHandler(evt) {
-    // HSM Status Handler Action
-    ifTrace("modeHandler: ${evt.value}")
+def modeLockHandler(evt) {
+    ifTrace("modeLockHandler: ${evt.value}")
     if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {
-        ifTrace("modeHandler: Application is paused or disabled.")
+        ifTrace("modeLockHandler: Application is paused or disabled.")
     } else if (!settings.whenToLock?.contains("6") && settings.whenToLock?.contains("7") && modesLockStatus?.contains(location.mode) && (lock1?.currentValue("lock") == "unlocked") && ((contact?.currentValue("contact") == "closed") || (contact == null))) {
         if (settings.whenToLock?.contains("7") && (enablePerModeLockDelay == true)) {
             modesLockStatus.each { it ->
@@ -384,11 +384,17 @@ def modeHandler(evt) {
             }
         }
         lockDoor()
+    }
+}
+
+def modeUnlockHandler(evt) {
+    ifTrace("modeUnlockHandler: ${evt.value}")
+    if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {
+        ifTrace("modeUnlockHandler: Application is paused or disabled.")
     } else if (!settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("7") && modesUnlockStatus?.contains(location.mode) && (lock1?.currentValue("lock") == "locked")) {
         unlockDoor()
     }
 }
-
 
 def hsmAlertHandler(evt) {
     // HSM Alert Handler Action
