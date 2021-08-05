@@ -10,7 +10,7 @@ import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.62"
+	state.version = "1.1.63"
 }
 
 definition(
@@ -464,7 +464,7 @@ def lock1LockHandler(evt) {
         lock1Unlock()
         state.delayUnlock = 1
         runIn(state.delayUnlock, unlockDoor, [data: maxRetriesUnlock])
-    } else if ((lock1?.currentValue("lock") == "locked") && (contact?.currentValue("contact") == "closed") || (contact == null)) {
+    } else if ((lock1?.currentValue("lock") == "locked") && ((contact?.currentValue("contact") == "closed") || (contact == null))) {
         unscheduleLockCommands()                  // ...we don't need to lock it later.
     }
 }
@@ -499,13 +499,11 @@ def lock1UnlockHandler(evt) {
     } else if (settings.whenToUnlock?.contains("3") && (state.fireMedicalStatus == "detected")) {
         ifTrace("Keeping door unlocked until the sensor clears.")
         unscheduleLockCommands()
-    } else if (settings.whenToLock?.contains("0") && (contact?.currentValue("contact") == "closed") || (contact == null)) {
-        if (contact?.currentValue("contact") == "closed") {
-            unscheduleLockCommands()
-            if (maxRetriesLock != null) {atomicState.countLock = maxRetriesLock} else {(atomicState.countLock = 0)}
-            lockDoor(maxRetriesLock)
-            ifTrace("Locking Door.")
-        }
+    } else if (settings.whenToLock?.contains("0") && ((contact?.currentValue("contact") == "closed") || (contact == null))) {
+        unscheduleLockCommands()
+        if (maxRetriesLock != null) {atomicState.countLock = maxRetriesLock} else {(atomicState.countLock = 0)}
+        lockDoor(maxRetriesLock)
+        ifTrace("Locking Door.")
     }
 }
 
