@@ -31,8 +31,8 @@ preferences {
 
     page(name: "mainPage", title: "Simple Automations", install: true, uninstall: true,submitOnChange: true) {
         section("SmartStart Credentials") {
-            input("Username", "text", title:"SmartStart Username", description: "Your SmartStart Username" , required: true, defaultValue: "guarddog13@yahoo.com", displayDuringSetup: true)
-            input("Password", "password", title:"SmartStart Password", description: "Your SmartStart Password", required: true, defaultValue: "Spr!ng2021", displayDuringSetup: true)
+            input("Username", "text", title:"SmartStart Username", description: "Your SmartStart Username" , required: true, defaultValue: "youremailhere@mail.com", displayDuringSetup: true)
+            input("Password", "password", title:"SmartStart Password", description: "Your SmartStart Password", required: true, defaultValue: "Spr!ng2022", displayDuringSetup: true)
         }
         section("Current Settings") {
             setButtonName()
