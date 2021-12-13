@@ -16,7 +16,7 @@ import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.65"
+	state.version = "1.1.66"
 }
 
 definition(
@@ -69,7 +69,7 @@ def mainPage() {
     }
     section(title: "Locking Options:", hideable: true, hidden: hideLockOptionsSection()) {
         if (detailedInstructions == true) {paragraph "This is the presence sensor that will be used to lock when presence is not present.  If using the combined presence feature then the lock will lock once all sensors have departed."}
-        if (settings.whenToLock?.contains("2")) {input "lockPresence", "capability.presenceSensor", title: "Presence: ${state.lockPresenceStatus} ${state.lockPresenceBatteryStatus}", submitOnChange: true, required: false, multiple: true}
+        if (settings.whenToLock?.contains("2")) {input "lockPresence", "capability.presenceSensor", title: "Presence", submitOnChange: true, required: false, multiple: true}
         if (settings.whenToLock?.contains("4")) {input "deviceActivationSwitch", "capability.switch", title: "Switch Triggered Action: ${state.deviceActivationSwitchStatus}", submitOnChange: true, required: false, multiple: false}
         if (settings.whenToLock?.contains("4")) {input "deviceActivationToggle", "bool", title: "Invert Switch Triggered Action: ", submitOnChange: true, required: false, multiple: false, defaultValue: false}
         input "whenToLock", "enum", title: "When to lock?  Default: '(Lock when lock unlocks)'", options: whenToLockOptions, defaultValue: ["0"], required: true, multiple: true, submitOnChange:true
@@ -115,7 +115,7 @@ def mainPage() {
     }
     section(title: "Unlocking Options:", hideable: true, hidden: hideUnlockOptionsSection()) {
         if (detailedInstructions == true) {if (settings.whenToUnlock?.contains("2")) {paragraph "This sensor is used for presence unlock triggers."}}
-        if (settings.whenToUnlock?.contains("2")) {input "unlockPresence", "capability.presenceSensor", title: "Presence: ${state.unlockPresenceStatus} ${state.unlockPresenceBatteryStatus}", submitOnChange: true, required: false, multiple: true}
+        if (settings.whenToUnlock?.contains("2")) {input "unlockPresence", "capability.presenceSensor", title: "Presence", submitOnChange: true, required: false, multiple: true}
         if (settings.whenToUnlock?.contains("3")) {input "fireMedical", "capability.smokeDetector", title: "Fire/Medical: ${state.fireMedicalStatus} ${state.fireMedicalBatteryStatus}", submitOnChange: true, required: false, multiple: true}
         if (settings.whenToUnlock?.contains("4")) {input "deviceActivationSwitch", "capability.switch", title: "Switch Triggered Action: ${state.deviceActivationSwitchStatus}", submitOnChange: true, required: false, multiple: false}
         if (settings.whenToUnlock?.contains("4")) {input "deviceActivationToggle", "bool", title: "Invert Switch Triggered Action: ", submitOnChange: true, required: false, multiple: false, defaultValue: false}
@@ -619,11 +619,11 @@ def lockPresenceHandler(evt) {
     
     // Device Handler Action
     if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {ifTrace("lockPresenceHanlder: Application is paused or disabled.")
-    } else if ((motionDurationToggle == true) && (state.motionActiveFlag == "active")){
+    //} else if ((motionDurationToggle == true) && (state.motionActiveFlag == "active")){
         // Motion is active. Doing nothing.
-        unscheduleLockCommands()                                                                     
+        // unscheduleLockCommands()                                                                     
     } else if (!settings.whenToLock?.contains("6") && settings.whenToLock?.contains("2") && (evt.value == "not present")) {
-        if (settings.eventNotifications?.contains("7")) {sendEventNotification("Presence Departure Lock")}
+        if (settings.eventNotifications?.contains("7")) {sendEventNotification("${evt.displayName} Presence Departure Lock")}
         unscheduleLockCommands()
         if (maxRetriesLock != null) {atomicState.countLock = maxRetriesLock} else {(atomicState.countLock = 0)}
         lockDoor(maxRetriesLock)
@@ -655,7 +655,7 @@ def unlockPresenceHandler(evt) {
     // Device Handler Action
     if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {ifTrace("unlockPresenceHanlder: Application is paused or disabled.")
     } else if (!settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("2") && (evt.value == "present")) {
-        if (settings.eventNotifications?.contains("6")) {sendEventNotification("Presence Arrival Unlock")}
+        if (settings.eventNotifications?.contains("6")) {sendEventNotification("${evt.displayName} Presence Arrival Unlock")}
         unscheduleLockCommands()
         if (maxRetriesUnlock != null) {atomicState.countUnlock = maxRetriesUnlock} else {(atomicState.countUnlock = 0)}
         unlockDoor(maxRetriesUnlock)
