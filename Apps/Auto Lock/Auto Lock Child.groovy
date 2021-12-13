@@ -6,11 +6,17 @@
  *   Pending - 
  */
 import groovy.transform.Field
+import groovy.time.TimeCategory
+import java.text.SimpleDateFormat
 import hubitat.helper.RMUtils
+
+@Field static final List<String> dateFormatOptions = ['MMM d, yyyy, h:mm a', 'E, MMM d, yyyy, h:mm a', 'E dd MMM yyyy, h:mm a', 'dd MMM yyyy, h:mm a',
+                                        'dd MMM yyyy HH:mm', 'E MMM dd HH:mm', 'yyyy-MM-dd HH:mm z']
+@Field static final Integer formatListIfMoreItemsThan = 4
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.64"
+	state.version = "1.1.65"
 }
 
 definition(
@@ -72,7 +78,6 @@ def mainPage() {
         if (!settings.whenToLock?.contains("6") && (detailedInstructions == true)) {paragraph "This value is used to determine the delay before locking actions occur. The minutes/seconds are determined by the Use seconds instead toggle."}
         if (!settings.whenToLock?.contains("6") && !settings.whenToLock?.contains("7") && (minSecLock == false)) {input "durationLock", "number", title: "Lock it how many minutes later?", required: true, submitOnChange: true, defaultValue: 10, range: "1..84600"}
         if (!settings.whenToLock?.contains("6") && !settings.whenToLock?.contains("7") && (minSecLock == true)) {input "durationLock", "number", title: "Lock it how many seconds later?", required: true, submitOnChange: true, defaultValue: 10, range: "1..84600"}
-        
         if (settings.whenToLock?.contains("7")) {input name: "modesLockStatus", type: "mode", title: "Lock when entering these modes",required: false, multiple: true, submitOnChange: true}
         if (settings.whenToLock?.contains("7")) {input name: "enablePerModeLockDelay", type: "bool", title: "Enable per mode lock delay",required: false, defaultValue: false, submitOnChange: true
             if (enablePerModeLockDelay == true) {input "minSecLock", "bool", title: "When locking with modes use seconds instead?", submitOnChange:true, required: true, defaultValue: false
@@ -104,6 +109,7 @@ def mainPage() {
         if (retryLock == true) {input "maxRetriesLock", "number", title: "Maximum number of retries?", required: false, submitOnChange: false, defaultValue: 3, range: "1..99"}
         if ((retryLock == true) && (detailedInstructions == true)) {paragraph "Delay between retries in second(s) provides the lock enough time to perform the locking action.  If you set this too low  and it send commands to the lock before it completes its' action, the commands will be ignored.  Three to five seconds is usually enough time for the lock to perform any actions and report back its' status."}
         if (retryLock == true) {input "delayBetweenRetriesLock", "number", title: "Delay between retries in second(s)?", require: false, submitOnChange: false, defaultValue: 5, range: "1..84600"}
+        if (settings.whenToLock?.contains("8")) {input "lockTime", "time", title: "Daily at this time: ", submitOnChange: true, required: false, multiple: false, defaultValue: false}
         if (settings.whenToLock?.contains("5")) {input "hsmLockStatus","enum", title: "Lock when HSM enters these modes",required: false, multiple: true, submitOnChange: false, options: hsmStateOptions}
         if (enableHSMToggle == true) {input "hsmCommandsLock","enum", title: "Set HSM status when Locked?",required: false, multiple: false, submitOnChange: false, options: hsmCommandOptions}
     }
@@ -142,6 +148,7 @@ def mainPage() {
         if (!settings.whenToUnlock?.contains("6") && (retryUnlock == true)) {input "maxRetriesUnlock", "number", title: "Maximum number of retries? While door is open it will wait for it to close.", submitOnChange: false, required: false, defaultValue: 3, range: "1..99"}
         if (!settings.whenToUnlock?.contains("6") && (retryUnlock == true) && (detailedInstructions == true)) {paragraph "Delay between retries in second(s) provides the lock enough time to perform the unlocking action.  If you set this too low and it send commands to the lock before it completes its' action, the commands will be ignored.  Three to five seconds is usually enough time for the lock to perform any actions and report back its' status."}
         if (!settings.whenToUnlock?.contains("6") && (retryUnlock == true)) {input "delayBetweenRetriesUnlock", "number", title: "Delay between retries in second(s)?", submitOnChange: false, require: false, defaultValue: 5, range: "1..84600"}
+        if (settings.whenToUnlock?.contains("9")) {input "unlockTime", "time", title: "Daily at this time: ", submitOnChange: true, required: false, multiple: false, defaultValue: false}
         if (!settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("0")) {input "hsmUnlockStatus","enum", title: "Unlock when HSM enters these modes",required: false, multiple: true, submitOnChange: false, options: hsmStateOptions}
         if (!settings.whenToUnlock?.contains("6") && (enableHSMToggle == true)) {input "hsmCommandsUnlock","enum", title: "Set HSM when Unlocked?",required: false, multiple: false, submitOnChange: false, options: hsmCommandOptions}
         }
@@ -197,6 +204,7 @@ def mainPage() {
     ["2": "Presence departure lock"],
     ["7": "Lock with Modes"],
     ["4": "Switch triggered lock"],
+    ["8": "Lock at certain time"],
     ["5": "Lock with HSM"],
     ["6": "Prevent locking under any circumstances"]
 ]
@@ -208,6 +216,7 @@ def mainPage() {
     ["3": "Fire/medical panic unlock"],
     ["7": "Unlock with Modes"],
     ["4": "Switch triggered unlock"],
+    ["9": "Unlock at certain time"],
     ["5": "State sync fix"],
     ["0": "Unlock with HSM"],
     ["6": "Prevent unlocking under any circumstances"]
@@ -341,6 +350,8 @@ def initialize() {
     subscribe(disabledSwitch, "switch.off", disabledHandler)
     subscribe(deviceActivationSwitch, "switch.on", deviceActivationSwitchHandler)
     subscribe(deviceActivationSwitch, "switch.off", deviceActivationSwitchHandler)
+    if (!settings.whenToLock?.contains("8") && (lockTime != null)) {schedule(lockTime, lockTimeHandler)}
+    if (!settings.whenToUnlock?.contains("9") && (unlockTime != null)) {schedule(unlockTime, unlockTimeHandler)}
     if ((motionDurationToggle == true) && motionDurationDevice) {subscribe(motionDurationDevice, "motion.active", motionDurationDeviceHandler)}
     if ((motionDurationToggle == true) && motionDurationDevice) {subscribe(motionDurationDevice, "motion.inactive", motionDurationDeviceHandler)}
     if ((customDurationToggle == true) && customDurationDevice) {subscribe(customDurationDevice, "switch.on", customDurationDeviceHandler)}
@@ -749,6 +760,18 @@ def deviceActivationSwitchHandler(evt) {
 def deviceActivationToggleHandler(evt) {
     // Toggle Status
     ifTrace("Action Toggled: ${evt.value}")
+}
+
+def lockTimeHandler(evt) {
+        if (maxRetriesUnlock != null) {atomicState.countUnlock = maxRetriesUnlock} else {(atomicState.countUnlock = 0)}
+        lock1Unlock()
+        runIn(1, unlockDoor, [data: maxRetriesUnlock])
+}
+
+def unlockTimeHandler(evt) {
+        if (maxRetriesUnlock != null) {atomicState.countUnlock = maxRetriesUnlock} else {(atomicState.countUnlock = 0)}
+        lock1Unlock()
+        runIn(1, unlockDoor, [data: maxRetriesUnlock])
 }
 
 def motionDurationDeviceHandler(evt) {
