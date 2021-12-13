@@ -9,7 +9,7 @@
 import groovy.transform.Field
 
 def setVersion(){
-	state.version = "1.1.65" // Version number of this app
+	state.version = "1.1.66" // Version number of this app
 	state.InternalName = "Auto Lock"   // this is the name used in the JSON file for this app
 }
 
