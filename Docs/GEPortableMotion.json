@@ -3,5 +3,14 @@
   "author": "Lewis Heidrick",
   "version": "1.0.4",
   "minimumHEVersion": "2.2.4",
-  "dateReleased": "2021-02-05"
+  "dateReleased": "2021-02-05",
+  "drivers": [
+    {
+      "id": "b18962f2-7de4-45c9-a08f-1fa58de25925",
+      "name": "GE Portable Smart Motion Sensor",
+      "namespace": "Heidrickla",
+      "location": "https://raw.githubusercontent.com/heidrickla/Hubitat/main/Drivers/GE%20Portable%20Smart%20Motion%20Sensor/GE%20Portable%20Smart%20Motion%20Sensor",
+      "required": true
+    }
+  ]
 }
