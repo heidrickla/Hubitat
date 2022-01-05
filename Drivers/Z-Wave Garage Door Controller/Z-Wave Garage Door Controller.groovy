@@ -3,7 +3,7 @@ import groovy.transform.Field
 
 def setVersion() {
     state.name = "Z-Wave Garage Door Controller"
-	state.version = "1.1.67"
+	state.version = "1.1.68"
 }
 
 metadata {
@@ -16,7 +16,7 @@ metadata {
         iconUrl: "",
         iconX2Url: "",
         iconX3Url: "",
-        importUrl: "https://raw.githubusercontent.com/heidrickla/Hubitat/Drivers/Z-Wave%20Garage%20Door%20Controller/Z-Wave%20Garage%20Door%20Controller.groovy")
+        importUrl: "https://raw.githubusercontent.com/heidrickla/Hubitat/main/Drivers/Z-Wave%20Garage%20Door%20Controller/Z-Wave%20Garage%20Door%20Controller.groovy")
     {
 		capability "Actuator"
 		capability "Door Control"
@@ -480,4 +480,3 @@ def ifTrace(msg) {
     if (!settings.ifLevel?.contains("3") && (isTrace != true)) {return}//bail
     else if (settings.ifLevel?.contains("3") || (isTrace == true)) {log.trace "${state.thisName}: ${msg}"}
 }
-
