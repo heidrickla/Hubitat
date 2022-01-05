@@ -6,7 +6,7 @@
     {
       "id": "deef716e-62f1-444a-8771-f96610218bb8",
       "name": "GE Portable Smart Motion Sensor",
-      "category": "Utility",
+      "category": "Control",
       "tags": [
         "Doors & Windows",
         "Misc. Devices",
@@ -20,7 +20,7 @@
     {
       "id": "c9174ead-c3fe-499c-afde-a86c429f92b9",
       "name": "Auto Lock",
-      "category": "Utility",
+      "category": "Control",
       "tags": [
         "Locks",
         "Doors & Windows",
