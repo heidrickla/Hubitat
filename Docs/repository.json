@@ -28,7 +28,7 @@
         "Tools & Utilities",
         "Safety & Security",
         "Notifications",
-        "Presence & Location"
+        "Presence & Location",
         "Monitoring"
       ],
       "location": "https://raw.githubusercontent.com/heidrickla/Hubitat/main/Docs/AutoLockManifest.json",
