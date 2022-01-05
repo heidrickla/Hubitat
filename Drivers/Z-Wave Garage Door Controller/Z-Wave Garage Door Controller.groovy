@@ -3,7 +3,7 @@ import groovy.transform.Field
 
 def setVersion() {
     state.name = "Z-Wave Garage Door Controller"
-	state.version = "1.1.68"
+	state.version = "1.1.69"
 }
 
 metadata {
