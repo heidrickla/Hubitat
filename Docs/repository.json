@@ -7,6 +7,13 @@
       "id": "deef716e-62f1-444a-8771-f96610218bb8",
       "name": "GE Portable Smart Motion Sensor",
       "category": "Utility",
+      "tags": [
+        "Doors & Windows",
+        "Misc. Devices",
+        "Tools & Utilities",
+        "Safety & Security",
+        "Monitoring"
+      ],
       "location": "https://raw.githubusercontent.com/heidrickla/Hubitat/main/Docs/GEPortableMotion.json",
       "description": "Driver for GE Portable Smart Motion Sensor."
     },
@@ -14,13 +21,33 @@
       "id": "c9174ead-c3fe-499c-afde-a86c429f92b9",
       "name": "Auto Lock",
       "category": "Utility",
+      "tags": [
+        "Locks",
+        "Doors & Windows",
+        "Misc. Devices",
+        "Tools & Utilities",
+        "Safety & Security",
+        "Notifications",
+        "Presence & Location"
+        "Monitoring"
+      ],
       "location": "https://raw.githubusercontent.com/heidrickla/Hubitat/main/Docs/AutoLockManifest.json",
       "description": "Automatically lock the door after a pre-determined amount of time, when door closed after a delay, or when triggered with a switch."
     },
     {
       "id": "e0558962-0f2a-4f6f-a8cf-28d0e51912fe",
       "name": "Z-Wave Garage Door Controller",
-      "category": "Utility",
+      "category": "Control",
+      "tags": [
+        "Garage Doors",
+        "Locks",
+        "Doors & Windows",
+        "Misc. Devices",
+        "Tools & Utilities",
+        "Safety & Security",
+        "Notifications",
+        "Monitoring"
+      ],
       "location": "https://raw.githubusercontent.com/heidrickla/Hubitat/main/Docs/ZWaveGarageDoorController.json",
       "description": "Z-Wave Garage Door Controller driver for the GDZ000-X line of devices from GoControl/Linear"
     }
