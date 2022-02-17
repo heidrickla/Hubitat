@@ -1018,7 +1018,7 @@ def unlockDoor(countUnlock) {
 
 def lock1Unlock() {
     ifTrace("lock1Unlock")
-    } if (lock1.currentValue("lock") == "unlocked"){
+    if (lock1.currentValue("lock") == "unlocked"){
 	    ifInfo("Lock is already unlocked. Doing nothing.")
     } else {
         lock1.unlock()
