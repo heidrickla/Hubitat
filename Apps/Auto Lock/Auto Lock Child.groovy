@@ -15,7 +15,7 @@ import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.67"
+	state.version = "1.1.68"
 }
 
 definition(
@@ -966,6 +966,8 @@ def lock1Lock() {
     if ((motionDurationToggle == true) && ((state.motionActiveFlag == "active") || (state.motionDurationDeviceStatus == "active"))){
         ifTrace("Motion is active. Doing nothing.")
         unscheduleLockCommands()
+	} else if (lock1.currentValue("lock") == "locked"){
+	    ifInfo("Lock is already locked. Doing nothing.")
     } else {
         lock1.lock()
         ifDebug("Lock command sent")
