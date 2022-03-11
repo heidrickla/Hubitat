@@ -9,7 +9,7 @@
 import groovy.transform.Field
 
 def setVersion(){
-	state.version = "1.1.68" // Version number of this app
+	state.version = "1.1.69" // Version number of this app
 	state.InternalName = "Auto Lock"   // this is the name used in the JSON file for this app
 }
 
@@ -43,7 +43,6 @@ def mainPage() {
                 paragraph "Presence will update from present to not present once all devices are away. It will update from not present to present when any device arrives."
 			    input "presSensors", "capability.presenceSensor", title: "Select Presence Sensors", submitOnChange: true, required: false, multiple: true
                 input name: "Create", type: "button", title: state.createCombinedSensorButtonName, submitOnChange:true, width: 5
-                displayFooter()
             }
     	}
     }
