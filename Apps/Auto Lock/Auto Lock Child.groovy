@@ -15,7 +15,7 @@ import hubitat.helper.RMUtils
 
 def setVersion() {
     state.name = "Auto Lock"
-	state.version = "1.1.69"
+	state.version = "1.1.70"
 }
 
 definition(
@@ -69,6 +69,8 @@ def mainPage() {
     section(title: "Locking Options:", hideable: true, hidden: hideLockOptionsSection()) {
         if (detailedInstructions == true) {paragraph "This is the presence sensor that will be used to lock when presence is not present.  If using the combined presence feature then the lock will lock once all sensors have departed."}
         if (settings.whenToLock?.contains("2")) {input "lockPresence", "capability.presenceSensor", title: "Presence", submitOnChange: true, required: false, multiple: true}
+        if (settings.whenToLock?.contains("2")) {input "lockPresenceSelection", "enum", title: "Disable presence departure locking when Any/All present?  Default: '(No)'", options: lockPresenceOptions, defaultValue: ["0"], required: true, multiple: false, submitOnChange:true}
+        if (settings.whenToLock?.contains("2") && !settings.lockPresenceSelection?.contains("0")) {input "lockPresenceOptionsSensors", "capability.presenceSensor", title: "Disable presence departure locking while present", submitOnChange: true, required: false, multiple: true}
         if (settings.whenToLock?.contains("4")) {input "deviceActivationSwitch", "capability.switch", title: "Switch Triggered Action: ${state.deviceActivationSwitchStatus}", submitOnChange: true, required: false, multiple: false}
         if (settings.whenToLock?.contains("4")) {input "deviceActivationToggle", "bool", title: "Invert Switch Triggered Action: ", submitOnChange: true, required: false, multiple: false, defaultValue: false}
         input "whenToLock", "enum", title: "When to lock?  Default: '(Lock when lock unlocks)'", options: whenToLockOptions, defaultValue: ["0"], required: true, multiple: true, submitOnChange:true
@@ -206,6 +208,12 @@ def mainPage() {
     ["8": "Lock at certain time"],
     ["5": "Lock with HSM"],
     ["6": "Prevent locking under any circumstances"]
+]
+
+@Field static List<Map<String,String>> lockPresenceOptions = [
+    ["0": "No"],
+    ["1": "Any Present"],
+    ["2": "All Present"]
 ]
 
 @Field static List<Map<String,String>> whenToUnlockOptions = [
@@ -458,7 +466,7 @@ def lock1LockHandler(evt) {
     if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {
         ifTrace("lock1LockHandler: Application is paused or disabled.")
     } else if (settings.whenToUnlock?.contains("6")) {
-    // Unlocking is disabled. Doing nothing.
+        ifTrace("lock1LockHandler: Unlocking is disabled. Doing nothing.")
     } else if (settings.whenToUnlock?.contains("1") && (contact?.currentValue("contact") == "open")) {
         if (contact?.currentValue("contact") == "open") {
             ifDebug("lock1LockHandler:  Lock was locked while Door was open. Performing a fast unlock to prevent hitting the bolt against the frame.")
@@ -621,11 +629,44 @@ def lockPresenceHandler(evt) {
     //} else if ((motionDurationToggle == true) && (state.motionActiveFlag == "active")){
         // Motion is active. Doing nothing.
         // unscheduleLockCommands()
-    } else if (!settings.whenToLock?.contains("6") && settings.whenToLock?.contains("2") && (evt.value == "not present")) {
+    } else if (lock1?.currentValue("lock") == "locked") {
+        ifTrace("lockPresenceHandler:  ${lock1} Do nothing, lock is locked.")
+    } else if (!settings.whenToLock?.contains("6") && settings.whenToLock?.contains("2") && settings.lockPresenceSelection?.contains("0") && (evt.value == "not present")) {
+        ifTrace("lockPresenceHandler: lockPresenceSelection = None")
         if (settings.eventNotifications?.contains("7")) {sendEventNotification("${evt.displayName} Presence Departure Lock ${lock1}")}
         unscheduleLockCommands()
         if (maxRetriesLock != null) {atomicState.countLock = maxRetriesLock} else {(atomicState.countLock = 0)}
         lockDoor(maxRetriesLock)
+    } else if (!settings.whenToLock?.contains("6") && settings.whenToLock?.contains("2") && settings.lockPresenceSelection?.contains("1") && (evt.value == "not present")) {
+        ifTrace("lockPresenceHandler: lockPresenceSelection = Any")
+        lockPresenceOptionsSensors.each { it ->
+            state.lockPresenceOptionsSensors = it.currentValue("presence")
+            if (state.lockPresenceOptionsSensors == "present") { itAny = "present"
+                ifTrace("lockPresenceHandler:  ${lock1} Do nothing, someone is home")
+            }
+        }
+        if (itAny != "present") {
+            if (settings.eventNotifications?.contains("7")) {sendEventNotification("${evt.displayName} Presence Departure Lock ${lock1}")}
+            unscheduleLockCommands()
+            if (maxRetriesLock != null) {atomicState.countLock = maxRetriesLock} else {(atomicState.countLock = 0)}
+            lockDoor(maxRetriesLock)
+        }
+    } else if (!settings.whenToLock?.contains("6") && settings.whenToLock?.contains("2") && settings.lockPresenceSelection?.Selection("2") && (evt.value == "not present")) {
+        ifTrace("lockPresenceHandler: lockPresenceSelection = All")
+        lockPresenceOptionsSensors.each { it ->
+            state.lockPresenceOptionsSensors = it.currentValue("presence")
+            if (state.lockPresenceOptionsSensors == "present") {itAny = "present"}
+            if (state.lockPresenceOptionsSensors == "not present") {itAny = "not present"}
+            if (itAny == "present") {itAll = "present"}
+        }
+        if (itAll == "present") {
+            ifTrace("lockPresenceHandler:  ${lock1} Do nothing, someone is home")
+        } else {
+            if (settings.eventNotifications?.contains("7")) {sendEventNotification("${evt.displayName} Presence Departure Lock ${lock1}")}
+            unscheduleLockCommands()
+            if (maxRetriesLock != null) {atomicState.countLock = maxRetriesLock} else {(atomicState.countLock = 0)}
+            lockDoor(maxRetriesLock)
+        }
     }
 }
 
