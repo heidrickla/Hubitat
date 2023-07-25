@@ -542,7 +542,7 @@ def lock1BatteryHandler(evt) {
 
 def lock1JammedHandler(evt) {
     if (evt.value) {
-	if (settings.failureNotifications?.contains("0") && (lock1.currentValue("lock") == "unknown")) {sendFailureNotification("${Lock1} is possibly jammed.")}
+	if (settings.failureNotifications?.contains("0") && (lock1.currentValue("lock") == "unknown")) {sendFailureNotification("${lock1} is possibly jammed.")}
         if (!settings.whenToUnlock?.contains("6") && settings.whenToUnlock?.contains("8") && (retryLock == true)) {unlockDoor()}
         if (!settings.whenToLock?.contains("6") && (retryLock == true)) {runIn(3, lockDoor)}
     }
@@ -568,7 +568,7 @@ def contactOpenHandler(evt) {
         unscheduleLockCommands()
         ifDebug("Door was opened while ${lock1} was locked. Performing a fast unlock and device refresh to get current state.")
         ifTrace("contactOpenHandler: Door was opened while ${lock1} was locked. Performing a fast unlock in case and device refresh to get current state.")
-        if (settings.failureNotifications?.contains("5")) {sendFailureNotification("${Lock1} State sync fix triggered")}
+        if (settings.failureNotifications?.contains("5")) {sendFailureNotification("${lock1} State sync fix triggered")}
         lock1Unlock()
         if (maxRetriesLock != null) {atomicState.countLock = maxRetriesLock} else {(atomicState.countLock = 0)}
         runIn(1, unlockDoor, [data: maxRetriesUnlock])
@@ -727,7 +727,7 @@ def fireMedicalHandler(evt) {
     updateLabel()
     if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {
         ifTrace("fireMedicalHandler: Application is paused or disabled.")
-        if (settings.failureNotifications?.contains("3")) {sendFailureNotification("${Lock1} Fire/Medical panic triggered unlock but application is paused or disabled")}
+        if (settings.failureNotifications?.contains("3")) {sendFailureNotification("${lock1} Fire/Medical panic triggered unlock but application is paused or disabled")}
     } else if (settings.whenToUnlock?.contains("3") && !settings.whenToUnlock?.contains("6") && ("${evt.value}" == "detected")) {
         ifDebug("fireMedicalHandler:  Fast unlocking ${lock1} because of an emergency.")
         if (settings.eventNotifications?.contains("5")) {sendEventNotification("Fire/Medical Panic Triggered.")}
@@ -764,7 +764,7 @@ def deviceActivationSwitchHandler(evt) {
     // Device Handler Action
     if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {
         ifTrace("deviceActivationSwitchHandler: Application is paused or disabled.")
-        if (settings.failureNotifications?.contains("4")) {sendFailureNotification("${Lock1} Switch triggered lock/unlock but application is paused or disabled.")}
+        if (settings.failureNotifications?.contains("4")) {sendFailureNotification("${lock1} Switch triggered lock/unlock but application is paused or disabled.")}
     } else if (deviceActivationSwitch) {
         deviceActivationSwitch.each { it ->
             state.deviceActivationSwitchState = it.currentValue("switch")
@@ -946,7 +946,7 @@ def lockDoor(countLock) {
     } else if (getHSMLockOk() == false) {ifDebug("Unable to lock ${lock1}. HSM Status is ${location.HSMStatus}.")
     } else if (settings.whenToLock?.contains("6")) {
         ifDebug("Prevent locking under any circumstances is enabled.")
-        if (settings.failureNotifications?.contains("6")) {sendFailureNotification("${Lock1} triggered while Preventing lock under any circumstances was enabled for ${lock1}.")}
+        if (settings.failureNotifications?.contains("6")) {sendFailureNotification("${lock1} triggered while Preventing lock under any circumstances was enabled for ${lock1}.")}
     } else if (lock1?.currentValue("lock") == "locked") {
         state.status = "(Locked)"
         unscheduleLockCommands()
@@ -963,7 +963,7 @@ def lockDoor(countLock) {
             lock1.refresh()
         } else if (settings.whenToLock?.contains("1") && (contact?.currentValue("contact") == "open") && (lock1?.currentValue("lock") == "unlocked")) {
             ifTrace("lockDoor: Door is open. Waiting for door to close before locking.")
-            if (settings.failureNotifications?.contains("8")) {sendFailureNotification("${Lock1} Door is open. Waiting for door to close before locking.")}
+            if (settings.failureNotifications?.contains("8")) {sendFailureNotification("${lock1} Door is open. Waiting for door to close before locking.")}
             unscheduleLockCommands()
         } else if (motionDurationDevice && !settings.whenToLock?.contains("6") && (motionDurationToggle == true) && (state.motionActiveFlag == "active")){
             // Motion is active. Doing nothing.
@@ -992,14 +992,14 @@ def lockDoor(countLock) {
                 i = (delayBetweenRetriesLock + state.delayLock)
                 runIn(i, lockDoor)
             } else if ((retryLock == true) && (atomicState.countLock < 0) && (lock1?.currentValue("lock") != "locked")) {
-                if (settings.failureNotifications?.contains("1")) {sendFailureNotification("${Lock1} Maximum Lock Retries Exceeded.")}
+                if (settings.failureNotifications?.contains("1")) {sendFailureNotification("${lock1} Maximum Lock Retries Exceeded.")}
                 if (maxRetriesLock != null) {atomicState.countLock = maxRetriesLock} else {(atomicState.countLock = 0)}
             }
         } else {
             ifTrace("lockDoor: Unhandled exception")
         }
     }
-    if (settings.failureNotifications?.contains("0") && (lock1.currentValue("lock") == "unknown")) {sendEventNotification("${Lock1} is possibly jammed.")}
+    if (settings.failureNotifications?.contains("0") && (lock1.currentValue("lock") == "unknown")) {sendEventNotification("${lock1} is possibly jammed.")}
 }
 
 def lock1Lock() {
@@ -1021,7 +1021,7 @@ def unlockDoor(countUnlock) {
     if ((getAllOk() == false) || (state?.pausedOrDisabled == true)) {ifTrace("unlockDoor: Application is paused or disabled.")
     } else if (getHSMUnlockOk() == false) {ifDebug("Unable to unlock the door. HSM Status is ${location.HSMStatus}.")
     } else if (settings.whenToUnlock?.contains("6")) {ifDebug("Prevent unlocking under any circumstances is enabled.")
-        if (settings.failureNotifications?.contains("6")) {sendFailureNotification("${Lock1} Unlock triggered while Preventing unlock under any circumstances was enabled.")}
+        if (settings.failureNotifications?.contains("6")) {sendFailureNotification("${lock1} Unlock triggered while Preventing unlock under any circumstances was enabled.")}
     } else if (lock1?.currentValue("lock") == "unlocked") {
         state.status = "(Unlocked)"
         unscheduleLockCommands()
@@ -1049,12 +1049,12 @@ def unlockDoor(countUnlock) {
             i = (delayBetweenRetriesLock + state.delayLock)
             runIn(i, unlockDoor)
         } else if ((retryUnlock == true) && (atomicState.countUnlock < 0) && (lock1?.currentValue("lock") != "unlocked")) {
-            if (settings.failureNotifications?.contains("2")) {sendFailureNotification("${Lock1} Maximum Unlock Retries Exceeded.")}
+            if (settings.failureNotifications?.contains("2")) {sendFailureNotification("${lock1} Maximum Unlock Retries Exceeded.")}
             unscheduleLockCommands()
             if (maxRetriesUnlock != null) {atomicState.countUnlock = maxRetriesUnlock} else {(atomicState.countUnlock = 0)}
         }
     }
-    if (settings.failureNotifications?.contains("0") && (lock1.currentValue("lock") == "unknown")) {sendFailureNotification("${Lock1} is possibly jammed.")}
+    if (settings.failureNotifications?.contains("0") && (lock1.currentValue("lock") == "unknown")) {sendFailureNotification("${lock1} is possibly jammed.")}
 }
 
 def lock1Unlock() {
